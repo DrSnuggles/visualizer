@@ -10,11 +10,20 @@ export const analyzer = {
 	data: [],
 	rAF: null,
 	canvasWorker: null,
-	fps: 0, // wanted FPS, 0=request animationframe
+	settings: {
+		fps: 0,
+		fft: 11, // pow 2 = 2048
+		minDB: -100,
+		maxDB: -30,
+		smooth: 0,
+		scale: 1,
+	},
 	framerate: 0, // measured
 	lastTick: performance.now(),
-	init: (source, canvasWorker, fps = analyzer.fps) => {
+	init: (source, canvasWorker, settings = analyzer.settings) => {
 		analyzer.canvasWorker = canvasWorker
+		analyzer.settings = {...analyzer.settings, ...settings}
+
 		//
 		// disconnect input nodes from destination??? not that easy
 		// or reconnect the sources.... more easy
@@ -39,10 +48,10 @@ export const analyzer = {
 		analyzer.analyserNodes = []
 		for (let i = 0, e = source.channelCount; i < e; i++) { // all channels the ctx has
 			analyzer.analyserNodes[i] = ctx.createAnalyser()
-			analyzer.analyserNodes[i].fftSize = 2048 // default = 2048 // 2^5 .. 2^15 (32..32768)
-			analyzer.analyserNodes[i].minDecibels = -100 // default = -100
-			analyzer.analyserNodes[i].maxDecibels = -30 // default = -30
-			analyzer.analyserNodes[i].smoothingTimeConstant = 0 // 0..1 default = 0.8
+			analyzer.analyserNodes[i].fftSize = Math.pow(2, analyzer.settings.fft) // default = 2048 // 2^5 .. 2^15 (32..32768)
+			analyzer.analyserNodes[i].minDecibels = analyzer.settings.minDB // default = -100
+			analyzer.analyserNodes[i].maxDecibels = analyzer.settings.maxDB // default = -30
+			analyzer.analyserNodes[i].smoothingTimeConstant = analyzer.settings.smooth // 0..1 default = 0.8
 			// Todo: ^^ needs to be set by visualizers, or ???
 			//console.log(i)
 			splitter.connect(analyzer.analyserNodes[i], i, 0) // Route each single channel from Splitter --> Analyzer
@@ -50,7 +59,7 @@ export const analyzer = {
 		source.connect(ctx.destination)	// connect to destination else no audio
 
 		analyzer.sendAudioInfo(ctx)
-		analyzer.setFPS( fps )
+		analyzer.setFPS( analyzer.settings.fps )
 
 		//console.log(analyzer)
 		return analyzer

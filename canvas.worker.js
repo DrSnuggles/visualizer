@@ -41,7 +41,7 @@ onmessage = function(e) {
 		for (let i = 0; i < viz.length; i++) {
 			viz[i].setAudio(e.data.audioInfo)
 		}
-		console.log(e.data.audioInfo)
+		//console.log(e.data.audioInfo)
 		return
 	}
 
