@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1"/>
+	<meta name="description" content="FFMPEG style visualizer"/>
+	<title>FFMPEG style visualizer</title>
+	<style>
+	body {
+		margin: 0;
+		background: #000;
+		font: 100% sans-serif;
+		text-align: center;
+	}
+	canvas {
+		width: 50vw;
+	}
+	</style>
+</head>
+<body>
+	<canvas ondblclick="this.requestFullscreen()"></canvas>
+	<br/>
+	<audio controls loop src="audio/06_Max47.opus"></audio>
+
+	<script type="module">
+		//
+		// Visualizer
+		//
+		import {visualizer} from './visualizer.min.js'						// import the minimized one file version
+		const canv = document.getElementsByTagName('canvas')[0]				// the canvas the visualizer should be using
+		canv.width = 1920													// dimensions
+		canv.height = 1080													// not changeable after init
+		visualizer.init(document.getElementsByTagName('audio')[0], canv)	// init
+	</script>
+</body>
+</html>
