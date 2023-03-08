@@ -22,12 +22,14 @@ init: (source, canvas, settings = visualizer.settings) => {
 		canvas.height = screen.height * visualizer.settings.scale
 		const offscreen = canvas.transferControlToOffscreen()
 		visualizer.canvasWorker.postMessage({ canvas: offscreen }, [offscreen]) // its nicer to pack the transfered objects into a new one
+		visualizer.analyzer = analyzer.init(visualizer.audioSource, visualizer.canvasWorker, visualizer.settings)
 	}catch(e){
 		// not the first time here
 		visualizer.analyzer = analyzer.init(visualizer.audioSource, visualizer.canvasWorker)
 	}
 	return visualizer
 },
+/*
 addUserInteract: () => {
 	// stupid no audio till user interaction policy thingy
 	addEventListener('keydown', visualizer.userInteract, { passive: true })
@@ -43,6 +45,7 @@ userInteract: () => {
 
 	//console.log(visualizer)
 },
+*/
 }
 
-visualizer.addUserInteract()
+//visualizer.addUserInteract()

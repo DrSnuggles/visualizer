@@ -29,12 +29,14 @@ export const visualizer = {
 			canvas.height = screen.height * visualizer.settings.scale
 			const offscreen = canvas.transferControlToOffscreen()
 			visualizer.canvasWorker.postMessage({ canvas: offscreen }, [offscreen]) // its nicer to pack the transfered objects into a new one
+			visualizer.analyzer = analyzer.init(visualizer.audioSource, visualizer.canvasWorker, settings)
 		}catch(e){
 			// not the first time here
 			visualizer.analyzer = analyzer.init(visualizer.audioSource, visualizer.canvasWorker)
 		}
 		return visualizer
 	},
+	/*
 	addUserInteract: () => {
 		// stupid no audio till user interaction policy thingy
 		addEventListener('keydown', visualizer.userInteract, { passive: true })
@@ -42,7 +44,8 @@ export const visualizer = {
 		addEventListener('touchstart', visualizer.userInteract, { passive: true })
 	},
 	userInteract: () => {
-		visualizer.analyzer = analyzer.init(visualizer.audioSource, visualizer.canvasWorker, visualizer.settings)
+		// too early, no  audio element yet.....
+		//visualizer.analyzer = analyzer.init(visualizer.audioSource, visualizer.canvasWorker, visualizer.settings)
 		//visualizer.canvasWorker.postMessage({ audioInfo: analyzer.audioInfo })
 		removeEventListener('keydown', visualizer.userInteract)
 		removeEventListener('click', visualizer.userInteract)
@@ -50,6 +53,8 @@ export const visualizer = {
 
 		//console.log(visualizer)
 	},
+	*/
 }
 
-visualizer.addUserInteract()
+// take care of this outside !!!
+//visualizer.addUserInteract()
