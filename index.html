@@ -75,9 +75,19 @@
 		removeEventListener('click', init)
 		removeEventListener('touchstart', init)
 		audioModal.classList.add('fadeOut')
-		new Visualizer(document.getElementsByTagName('audio')[0], document.getElementsByTagName('canvas')[0])
-		new Visualizer(document.getElementsByTagName('audio')[1], document.getElementsByTagName('canvas')[1])
-		new Visualizer(document.getElementsByTagName('audio')[2], document.getElementsByTagName('canvas')[2])
+
+		// use lower settings if you use multiple
+		const settings = {
+			fps: 30,	// 0 = max (default)
+			fft: 10,	// 11 pow 2 = 2048 (default)
+			minDB: -100,
+			maxDB: -30,
+			smooth: 0,
+			scale: 1,	// canvas = screen resolution, lower scale reduces work
+		}
+		new Visualizer(document.getElementsByTagName('audio')[0], document.getElementsByTagName('canvas')[0], settings)
+		new Visualizer(document.getElementsByTagName('audio')[1], document.getElementsByTagName('canvas')[1], settings)
+		new Visualizer(document.getElementsByTagName('audio')[2], document.getElementsByTagName('canvas')[2], settings)
 	}
 
 	// if you want to reuse a canvas later with new audio source call

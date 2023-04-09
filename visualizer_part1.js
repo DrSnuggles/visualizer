@@ -4,7 +4,7 @@
 import {Analyzer} from './analyzer.js'
 
 const defaultSettings = {
-	fps: 16,
+	fps: 0,
 	fft: 11, // pow 2 = 2048
 	minDB: -100,
 	maxDB: -30,
