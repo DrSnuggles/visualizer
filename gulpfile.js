@@ -29,10 +29,10 @@ gulp.task('concat', () => {
 		ecma: 6,
 		keep_fnames: false,
 		mangle: {
-		  toplevel: true,
+			toplevel: true,
 		},
 	  }))
-    .pipe(gulp.dest('.'))
+	.pipe(gulp.dest('.'))
 })
 
 gulp.task('rollupVisualizer', () => {
@@ -42,7 +42,7 @@ gulp.task('rollupVisualizer', () => {
 			ecma: 6,
 			keep_fnames: false,
 			mangle: {
-			  toplevel: true,
+				toplevel: true,
 			},
 		  }))
 		.pipe(gulp.dest('.'))

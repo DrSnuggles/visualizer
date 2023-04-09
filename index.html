@@ -9,28 +9,46 @@
 	body {
 		margin: 0;
 		background: #000;
+		color: #fff;
 		font: 100% sans-serif;
 		text-align: center;
 	}
 	canvas {
-		width: 50vw;
+		height: 20vh;
 	}
 	</style>
 </head>
 <body>
-	<canvas ondblclick="this.requestFullscreen()"></canvas>
+
+	<h1>Visualizer Demo</h1>
+
+	<canvas></canvas>
 	<br/>
 	<audio controls loop src="audio/06_Max47.opus"></audio>
+	<br/>
+
+	<canvas></canvas>
+	<br/>
+	<audio controls loop src="audio/WelcomeToOurStation.mp3"></audio>
+	<br/>
+
+	<canvas></canvas>
+	<br/>
+	<audio controls loop src="audio/WulleWulle.mp3"></audio>
+	<br/>
 
 	<script type="module">
-		//
-		// Visualizer
-		//
-		import {visualizer} from './visualizer.min.js'						// import the minimized one file version
-		const canv = document.getElementsByTagName('canvas')[0]				// the canvas the visualizer should be using
-		canv.width = 1920													// dimensions
-		canv.height = 1080													// not changeable after init
-		visualizer.init(document.getElementsByTagName('audio')[0], canv)	// init
+	//
+	// Visualizer
+	//
+	//import {Visualizer} from './visualizer_dev.js'						// import the dev version
+	import {Visualizer} from './visualizer.min.js'						// import the minimized one file version
+	// init
+	new Visualizer(document.getElementsByTagName('audio')[0], document.getElementsByTagName('canvas')[0])
+	new Visualizer(document.getElementsByTagName('audio')[1], document.getElementsByTagName('canvas')[1])
+	new Visualizer(document.getElementsByTagName('audio')[2], document.getElementsByTagName('canvas')[2])
+
+	// if you want to reuse a canvas with new audio source call: yourViz.analyzer.setSource( newAudioSource )
 	</script>
 </body>
 </html>

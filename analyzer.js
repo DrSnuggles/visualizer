@@ -4,26 +4,31 @@
 
 	for low freq with linear bins maybe https://stackoverflow.com/questions/42313990/javascript-analysernode-low-frequencies-bass
 */
-export const analyzer = {
-	analyserNodes: [],
-	audioInfo: {},
-	data: [],
-	rAF: null,
-	canvasWorker: null,
-	settings: {
-		fps: 0,
-		fft: 11, // pow 2 = 2048
-		minDB: -100,
-		maxDB: -30,
-		smooth: 0,
-		scale: 1,
-	},
-	framerate: 0, // measured
-	lastTick: performance.now(),
-	init: (source, canvasWorker, settings = analyzer.settings) => {
-		analyzer.canvasWorker = canvasWorker
-		analyzer.settings = {...analyzer.settings, ...settings}
 
+const defaultSettings = {
+	fps: 0,
+	fft: 11, // pow 2 = 2048
+	minDB: -100,
+	maxDB: -30,
+	smooth: 0,
+	scale: 1,
+}
+
+export class Analyzer {
+	constructor(source, canvasWorker, settings) {
+		this.analyserNodes = []
+		this.audioInfo = {}
+		this.data = []
+		this.rAF = null
+		this.settings = {...defaultSettings, ...settings}
+		this.framerate = 0 // measured
+		this.lastTick = performance.now()
+
+		this.canvasWorker = canvasWorker
+		return this.setSource(source)
+	}
+
+	setSource(source) {
 		//
 		// disconnect input nodes from destination??? not that easy
 		// or reconnect the sources.... more easy
@@ -45,114 +50,118 @@ export const analyzer = {
 		//console.log(splitter)
 		source.connect(splitter) // Input --> Splitter
 		//console.log(ctx, source)
-		analyzer.analyserNodes = []
+		//this.analyserNodes = []
 		for (let i = 0, e = source.channelCount; i < e; i++) { // all channels the ctx has
-			analyzer.analyserNodes[i] = ctx.createAnalyser()
-			analyzer.analyserNodes[i].fftSize = Math.pow(2, analyzer.settings.fft) // default = 2048 // 2^5 .. 2^15 (32..32768)
-			analyzer.analyserNodes[i].minDecibels = analyzer.settings.minDB // default = -100
-			analyzer.analyserNodes[i].maxDecibels = analyzer.settings.maxDB // default = -30
-			analyzer.analyserNodes[i].smoothingTimeConstant = analyzer.settings.smooth // 0..1 default = 0.8
+			this.analyserNodes[i] = ctx.createAnalyser()
+			this.analyserNodes[i].fftSize = Math.pow(2, this.settings.fft) // default = 2048 // 2^5 .. 2^15 (32..32768)
+			this.analyserNodes[i].minDecibels = this.settings.minDB // default = -100
+			this.analyserNodes[i].maxDecibels = this.settings.maxDB // default = -30
+			this.analyserNodes[i].smoothingTimeConstant = this.settings.smooth // 0..1 default = 0.8
 			// Todo: ^^ needs to be set by visualizers, or ???
 			//console.log(i)
-			splitter.connect(analyzer.analyserNodes[i], i, 0) // Route each single channel from Splitter --> Analyzer
+			splitter.connect(this.analyserNodes[i], i, 0) // Route each single channel from Splitter --> Analyzer
 		}
 		source.connect(ctx.destination)	// connect to destination else no audio
 
-		analyzer.sendAudioInfo(ctx)
-		analyzer.setFPS( analyzer.settings.fps )
+		this.sendAudioInfo(ctx)
+		this.setFPS( this.settings.fps )
 
-		//console.log(analyzer)
-		return analyzer
-	},
-	loopRAF: () => {
+		return this
+	}
+
+	loopRAF() {
 		// no more IF in loop
 		// but another jump (should be faster) ;)
-		analyzer.rAF = requestAnimationFrame(analyzer.loopRAF)
-		analyzer.loop()
-	},
-	loopTimer: () => {
-		// setTimout(analyzer.loopTimer, 1000/analyzer.fps)
-		analyzer.getFramerate()
-		analyzer.loop()
-	},
-	getFramerate: () => {
+		this.rAF = requestAnimationFrame(()=>{this.loopRAF()})
+		this.loop()
+	}
+	loopTimer() {
+		// setTimout(this.loopTimer, 1000/this.fps)
+		//console.log('loopTimer')
+		this.getFramerate()
+		this.loop()
+	}
+	getFramerate() {
 		const now = performance.now()
-		analyzer.framerate = 1000 / (now - analyzer.lastTick)
-		analyzer.lastTick = now
-	},
-	loop: () => {
+		this.framerate = 1000 / (now - this.lastTick)
+		this.lastTick = now
+	}
+	loop () {
+		//console.log('loop')
 		/* now loopRAF
-		if (analyzer.fps === 0) {
-			analyzer.rAF = requestAnimationFrame(analyzer.loop)  
+		if (this.fps === 0) {
+			this.rAF = requestAnimationFrame(this.loop)  
 		} else {
-			//analyzer.rAF = setTimeout(analyzer.loop, 1000/analyzer.fps)
+			//this.rAF = setTimeout(this.loop, 1000/this.fps)
 		}
 		*/
 
-		analyzer.data = {
+		this.data = {
 			freq: [],
 			time: [],
 		}
 		// TimeDomain and Frequency
 		// freq (use binCount or fftSize/2)
 		//console.time('getByteData')
-		for (let i = 0; i < analyzer.analyserNodes.length; i++) {
+		for (let i = 0; i < this.analyserNodes.length; i++) {
 			// timedomain waveform, goniometer
-			analyzer.data.time[i] = new Uint8Array(analyzer.analyserNodes[i].fftSize)
-			analyzer.analyserNodes[i].getByteTimeDomainData(analyzer.data.time[i])
+			this.data.time[i] = new Uint8Array(this.analyserNodes[i].fftSize)
+			this.analyserNodes[i].getByteTimeDomainData(this.data.time[i])
 			// time is about 10x faster (here freq took about 0.2ms hard to beat with of FFT)
 
-			analyzer.data.freq[i] = new Uint8Array(analyzer.analyserNodes[i].frequencyBinCount)
-			analyzer.analyserNodes[i].getByteFrequencyData(analyzer.data.freq[i])
+			this.data.freq[i] = new Uint8Array(this.analyserNodes[i].frequencyBinCount)
+			this.analyserNodes[i].getByteFrequencyData(this.data.freq[i])
 		}
 		//console.timeEnd('getByteData')
-		analyzer.canvasWorker.postMessage({data: analyzer.data})
-	},
-	sendAudioInfo:(ctx) => {
-		analyzer.canvasWorker.postMessage({audioInfo: {
-			fftSize: analyzer.analyserNodes[0].fftSize,
-			minDB: analyzer.analyserNodes[0].minDecibels,
-			maxDB: analyzer.analyserNodes[0].maxDecibels,
-			smooth: analyzer.analyserNodes[0].smoothingTimeConstant,
+		this.canvasWorker.postMessage({data: this.data})
+	}
+	sendAudioInfo(ctx) {
+		this.canvasWorker.postMessage({audioInfo: {
+			fftSize: this.analyserNodes[0].fftSize,
+			minDB: this.analyserNodes[0].minDecibels,
+			maxDB: this.analyserNodes[0].maxDecibels,
+			smooth: this.analyserNodes[0].smoothingTimeConstant,
 			sampleRate: ctx?.sampleRate,
 			channels: ctx?.destination.channelCount,
 		}})
 		/*
-		analyzer.audioInfo = {
-			fftSize: analyzer.analyserNodes[0].fftSize,
-			minDB: analyzer.analyserNodes[0].minDecibels,
-			maxDB: analyzer.analyserNodes[0].maxDecibels,
-			smooth: analyzer.analyserNodes[0].smoothingTimeConstant,
+		this.audioInfo = {
+			fftSize: this.analyserNodes[0].fftSize,
+			minDB: this.analyserNodes[0].minDecibels,
+			maxDB: this.analyserNodes[0].maxDecibels,
+			smooth: this.analyserNodes[0].smoothingTimeConstant,
 			sampleRate: ctx.sampleRate,
 			channels: ctx.destination.channelCount,
 		}
 		*/
-	},
-	setFPS:(fps) => {
+	}
+	setFPS(fps) {
 		//console.log('Target FPS: '+ fps)
 		// stop loop
-		if (analyzer.rAF) {
-			if (analyzer.fps === 0) {
-				cancelAnimationFrame(analyzer.rAF)
+		if (this.rAF) {
+			if (this.fps === 0) {
+				cancelAnimationFrame(this.rAF)
 			} else {
-				//clearTimeout(analyzer.rAF)
-				clearInterval(analyzer.rAF)
+				//clearTimeout(this.rAF)
+				clearInterval(this.rAF)
 			}
-			analyzer.rAF = null
+			this.rAF = null
 		}
 		// start loop
 		if (fps === 0) {
 			//console.log('Using RAF')
-			analyzer.rAF = requestAnimationFrame(analyzer.loopRAF)
-			analyzer.framerate = 'MAX'
+			this.rAF = requestAnimationFrame(()=>{this.loopRAF()})
+			this.framerate = 'MAX'
 		} else {
-			//console.log('Using Timeout')
-			//analyzer.rAF = setTimeout(analyzer.loopTimer, 1000/fps) // slower for tests
-			analyzer.rAF = setInterval(analyzer.loopTimer, 1000/fps) // slower for tests
-			//analyzer.rAF = setInterval(()=>{
-			//	requestAnimationFrame(analyzer.loopTimer)
+			//console.log('Using Interval')
+			//this.rAF = setTimeout(this.loopTimer, 1000/fps) // slower for tests
+			//this.rAF = setInterval(this.loopTimer, 1000/fps) // slower for tests	// did not work in class
+			this.rAF = setInterval(()=>{this.loopTimer()}, 1000/fps) // slower for tests
+
+			//this.rAF = setInterval(()=>{
+			//	requestAnimationFrame(this.loopTimer)
 			//}, 1000/fps) // slower for tests
 		}
-		analyzer.fps = fps
+		this.fps = fps
 	}
 }
