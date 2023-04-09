@@ -16,9 +16,35 @@
 	canvas {
 		height: 20vh;
 	}
+	#audioModal {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100vw;
+		height: 100vh;
+		background: #FFFD;
+		font: 500% sans-serif;
+		line-height: 100vh;
+		z-index: 604;
+		cursor: pointer;
+	}
+	#audioModal.fadeOut {
+		animation: fadeOut 500ms forwards;
+	}
+	@keyframes fadeOut {
+		0% {
+			opacity: 1;
+		}
+		100% {
+			opacity: 0;
+			z-index: -604;
+		}
+	}
 	</style>
 </head>
 <body>
+
+	<div id="audioModal">👉 💻 👂 🎶</div>
 
 	<h1>Visualizer Demo</h1>
 
@@ -45,6 +71,10 @@
 	addEventListener('click', init)
 	addEventListener('touchstart', init)
 	function init() {
+		removeEventListener('keydown', init)
+		removeEventListener('click', init)
+		removeEventListener('touchstart', init)
+		audioModal.classList.add('fadeOut')
 		new Visualizer(document.getElementsByTagName('audio')[0], document.getElementsByTagName('canvas')[0])
 		new Visualizer(document.getElementsByTagName('audio')[1], document.getElementsByTagName('canvas')[1])
 		new Visualizer(document.getElementsByTagName('audio')[2], document.getElementsByTagName('canvas')[2])
