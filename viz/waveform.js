@@ -31,7 +31,8 @@ export class Waveform {
 		ctx.fillStyle = 'rgba(0, 0, 0, 255)'
 		ctx.fillRect(this.x, this.y, this.width, this.height)
 	}
-	drawBG() {
+	/*
+	drawBG() { // not called
 		const ctx = this.ctx
 		const width = this.width
 		const height = this.height
@@ -55,6 +56,7 @@ export class Waveform {
 			ctx.stroke()
 		}
 	}
+	*/
 	drawFG(data) {
 		const ctx = this.ctx
 		const width = this.width

@@ -46,7 +46,7 @@ export class Spectrogram {
 		//ctx.fillRect(this.x, this.y, this.width, this.hCoeff)
 		ctx.fillRect(this.x, this.y, this.width, this.height)
 	}
-	drawBG() {}
+	//drawBG() {} // not called
 	drawFG(dat) {
 		const ctx = this.ctx
 		const width = this.width
