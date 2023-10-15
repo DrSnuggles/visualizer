@@ -47,14 +47,15 @@ export class Spectrogram {
 		ctx.fillRect(this.x, this.y, this.width, this.height)
 	}
 	//drawBG() {} // not called
-	drawFG(dat) {
+	drawFG() {
+		const data = new Uint8Array( this.sab )
 		const ctx = this.ctx
 		const width = this.width
 		const hCoeff = this.hCoeff
 		const bins = this.bins
 
 		//const data = dat.freq[0]
-		const data = dat.freq
+		//const data = dat.freq
 		//console.log(bins,data)
 		const specSpeed = 2
 		//const specCtx = this.specCtx;
@@ -79,7 +80,8 @@ export class Spectrogram {
 			for (let i = 0; i <= this.maxHearableBin; i++) {
 				//console.log(data[x], getColor(data[x]))
 				//const style = this.colorMap[data[i]]
-				let val = Math.max(data[0][i], data[1][i])
+				//let val = Math.max(data[0][i], data[1][i])
+				let val = Math.max(data[this.fftSize+i], data[this.fftSize*2.5+i])
 				const style = this.colorMap[ val ]
 				const h = ((this.WEIGHTING === 'A') ? this._aWeightingLUT[i]/1.4 : 1) * val/256 * hCoeff | 0
 				const x = i*scaleX
@@ -98,7 +100,7 @@ export class Spectrogram {
 				const binWidth = (Math.log(i + 2) / logmax) * width - x | 0
 				const h =        ((this.WEIGHTING === 'A') ? this._aWeightingLUT[i]/1.4 : 1) * data[i]/256 * hCoeff | 0
 				//const style =    this.colorMap[data[i] || 0]
-				const style = this.colorMap[ Math.max(data[0][i], data[1][i], 0) ]
+				const style = this.colorMap[ Math.max(data[this.fftSize+i], data[this.fftSize*2.5+i], 0) ]
 				ctx.fillStyle = style
 				ctx.fillRect((this.x+x), (this.y+hCoeff - h), binWidth, h)
 				this.tempCtx.fillStyle = style
@@ -137,6 +139,7 @@ export class Spectrogram {
 	
 	}
 	setAudio(info) {
+		this.fftSize = info.fftSize
 		this.bins = info.fftSize/2
 		if (info.channels) {
 			this.nyquist = info.sampleRate/2
@@ -146,6 +149,8 @@ export class Spectrogram {
 		// A Weighting
 		const freqTable = this.makeBinFreqs()
 		this._aWeightingLUT = freqTable.map(f => 0.5 + 0.5 * this._getAWeighting(f))
+
+		this.sab = info.sab
 	}
 
 	// Helpers

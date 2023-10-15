@@ -25,6 +25,8 @@ export class Analyzer {
 		this.lastTick = performance.now()
 
 		this.canvasWorker = canvasWorker
+		// not possible to let AnalyzerNode to write into Shared directly
+		this.sab = new SharedArrayBuffer( 2 * 32768*1.5 )	// maxChannels * maxSize // rethink this! actually we are just using stereo visualizers... or?
 		return this.setSource(source)
 	}
 
@@ -87,6 +89,7 @@ export class Analyzer {
 		this.lastTick = now
 	}
 	loop () {
+		//console.time('loop')
 		//console.log('loop')
 		/* now loopRAF
 		if (this.fps === 0) {
@@ -96,24 +99,33 @@ export class Analyzer {
 		}
 		*/
 
-		this.data = {
-			freq: [],
-			time: [],
-		}
 		// TimeDomain and Frequency
 		// freq (use binCount or fftSize/2)
 		//console.time('getByteData')
+		// takes 0.15 -> 0.45 ms
+		//let ab = new ArrayBuffer( this.analyserNodes.length*(this.analyserNodes[i].fftSize+this.analyserNodes[i].frequencyBinCount)  )		// channels max TIME + FFT
+		const chSize = this.analyserNodes[0].fftSize + this.analyserNodes[0].frequencyBinCount // fftSize*1.5
+		//let u8 = new Uint8Array( this.analyserNodes.length * chSize  )		// channels max TIME + FFT
+		let sab8 = new Uint8Array( this.sab )
 		for (let i = 0; i < this.analyserNodes.length; i++) {
 			// timedomain waveform, goniometer
-			this.data.time[i] = new Uint8Array(this.analyserNodes[i].fftSize)
-			this.analyserNodes[i].getByteTimeDomainData(this.data.time[i])
+			let t = new Uint8Array(this.analyserNodes[i].fftSize)
+			this.analyserNodes[i].getByteTimeDomainData(t)
+			// sab didnt work !!! this.analyserNodes[i].getByteTimeDomainData( new Uint8Array( this.sab.slice(0, 0*32768) ) )
 			// time is about 10x faster (here freq took about 0.2ms hard to beat with of FFT)
+			//u8.set(t, i*chSize)
+			sab8.set(t, i*chSize)	// need to copy over to shared arraybuffer
 
-			this.data.freq[i] = new Uint8Array(this.analyserNodes[i].frequencyBinCount)
-			this.analyserNodes[i].getByteFrequencyData(this.data.freq[i])
+			t = new Uint8Array(this.analyserNodes[i].frequencyBinCount)
+			this.analyserNodes[i].getByteFrequencyData(t)
+			sab8.set(t, i*(chSize)+this.analyserNodes[i].fftSize)
 		}
 		//console.timeEnd('getByteData')
-		this.canvasWorker.postMessage({data: this.data})
+		//this.canvasWorker.postMessage({data: this.data})
+		//const ab = u8.buffer
+		//this.canvasWorker.postMessage(ab, [ab])	// avoid json here to gain bit speed JSON is really fast but collecting all
+		this.canvasWorker.postMessage('process')
+		//console.timeEnd('loop')
 	}
 	sendAudioInfo(ctx) {
 		this.canvasWorker.postMessage({audioInfo: {
@@ -123,6 +135,7 @@ export class Analyzer {
 			smooth: this.analyserNodes[0].smoothingTimeConstant,
 			sampleRate: ctx?.sampleRate,
 			channels: ctx?.destination.channelCount,
+			sab: this.sab,
 		}})
 		/*
 		this.audioInfo = {

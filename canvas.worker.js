@@ -8,8 +8,31 @@ import {Goniometer} from './viz/goniometer.js'
 let viz = []
 
 onmessage = function(e) {
-	//console.log(e.data)
+	//console.log(e.data.byteLength)
 	// most used on top
+	if (e.data === 'process') {
+		for (let i = 0; i < viz.length; i++) {
+			//console.time('viz #'+i)
+			viz[i].clear()
+			//viz[i].drawBG()
+			viz[i].drawFG()
+			//console.timeEnd('viz #'+i)
+		}
+		return
+	}
+	/*
+	if (e.data.byteLength) {
+		const u8 = new Uint8Array(e.data)
+		for (let i = 0; i < viz.length; i++) {
+			//console.time('viz #'+i)
+			viz[i].clear()
+			//viz[i].drawBG()
+			viz[i].drawFG(u8)
+			//console.timeEnd('viz #'+i)
+		}
+		return
+	}
+	// below is obsolete
 	if (e.data.data) {
 		//console.time('draw all viz')
 		//const startTime = performance.now()
@@ -26,6 +49,7 @@ onmessage = function(e) {
 		//	console.info('long running:', runTime)
 		return
 	}
+	*/
 
 	// 1st init = transfer of offscreen canvas
 	if (e.data.canvas) {

@@ -57,7 +57,8 @@ export class Waveform {
 		}
 	}
 	*/
-	drawFG(data) {
+	drawFG() {
+		const data = new Uint8Array( this.sab )
 		const ctx = this.ctx
 		const width = this.width
 		const height = this.height
@@ -65,15 +66,19 @@ export class Waveform {
 		ctx.beginPath()
 		ctx.lineWidth = 2
 		ctx.strokeStyle = this.strokeFG // for line
-		const scaleX = width / data.time[0].length
+		//const scaleX = width / data.time[0].length
+		const scaleX = width / this.fftSize
 		
 		// channels
-		for (let ch = 0, e = data.time.length; ch < e; ch++) {
+		//for (let ch = 0, e = data.time.length; ch < e; ch++) {
+		for (let ch = 0, e = this.channels; ch < e; ch++) {
 			let amp// = data[ch][i]
 			let pos = this.y + (ch+.5)*this.chHigh
 			ctx.moveTo(this.x, (pos))
-			for (let i = 0, ee = data.time[ch].length; i < ee; i++) {
-				amp = (data.time[ch][i]-128.0) / 128.0
+			//for (let i = 0, ee = data.time[ch].length; i < ee; i++) {
+			for (let i = 0, ee = this.fftSize; i < ee; i++) {
+				//amp = (data.time[ch][i]-128.0) / 128.0
+				amp = (data[ch*this.fftSize*1.5+i]-128.0) / 128.0
 				pos = this.y + (ch+.5)*this.chHigh + amp*this.ampHigh
 				//ctx.fillStyle = this.colorMap[data.time[ch][i]]
 				ctx.lineTo((this.x+(i)*scaleX), (pos))
@@ -84,14 +89,16 @@ export class Waveform {
 		}
 		ctx.stroke()
 	}
-	setAudio(audioInfo) {
-		if (!audioInfo.channels) return
-		this.channels = audioInfo.channels
+	setAudio(info) {
+		this.sab = info.sab
+		this.fftSize = info.fftSize
+
+		if (!info.channels) return
+		this.channels = info.channels
 
 		// just calc once and use often
-		this.chHigh = this.height / audioInfo.channels  
+		this.chHigh = this.height / info.channels
 		this.ampHigh = this.chHigh / 2
-
 		//console.log(this)
 	}
 }

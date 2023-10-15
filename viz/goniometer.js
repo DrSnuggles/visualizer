@@ -59,12 +59,17 @@ export class Goniometer {
 		ctx.stroke() // finally draw
 	}
 	*/
-	drawFG(data) {
+	drawFG() {
+		const data = new Uint8Array( this.sab )
 		const ctx = this.ctx
 		const width = this.width
 		const height = this.height
-		const dataL = data.time[0]
-		const dataR = data.time[1]
+		//console.time('uint8array')
+		//const dataL = new Uint8Array( this.sab.slice(0 * 32768, 32768) )//data.time[0]
+		//const dataR = new Uint8Array( this.sab.slice(1 * 32768, 32768) )//data.time[1]
+		//const dataL = new Uint8Array( data.slice(0 * this.fftSize*1.5, this.fftSize) )//data.time[0]
+		//const dataR = new Uint8Array( data.slice(1 * this.fftSize*1.5, this.fftSize+this.fftSize/2) )//data.time[1]
+		//console.timeEnd('uint8array')
 
 		ctx.lineWidth = 1
 		ctx.strokeStyle = this.strokeFG
@@ -73,18 +78,24 @@ export class Goniometer {
 		let rotated
 		
 		// move to start point
-		rotated = this.rotate45deg(this.toFloat(dataR[0]), this.toFloat(dataL[0]))  // Right channel is mapped to x axis
+		//rotated = this.rotate45deg(this.toFloat(dataR[0]), this.toFloat(dataL[0]))  // Right channel is mapped to x axis
+		rotated = this.rotate45deg(this.toFloat(data[this.fftSize*1.5]), this.toFloat(data[0]))  // Right channel is mapped to x axis
 		ctx.moveTo(this.x+rotated.x * width + width/2.0, this.y+rotated.y* height + height/2.0)
 		
 		// draw line
-		for (let i = 1; i < dataL.length; i++) {
-		 rotated = this.rotate45deg(this.toFloat(dataR[i]), this.toFloat(dataL[i]))
+		//for (let i = 1; i < dataL.length; i++) {
+		for (let i = 1; i < this.fftSize; i++) {
+		 //rotated = this.rotate45deg(this.toFloat(dataR[i]), this.toFloat(dataL[i]))
+		 rotated = this.rotate45deg(this.toFloat(data[this.fftSize*1.5+i]), this.toFloat(data[i]))
 		 ctx.lineTo(this.x+rotated.x * width + width/2.0, this.y+rotated.y* height + height/2.0)
 		}
 		
 		ctx.stroke()
 	}
-	setAudio() {}
+	setAudio(info) {
+		this.fftSize = info.fftSize
+		this.sab = info.sab
+	}
 		
 	// Helpers
 	toFloat(uint8) {
