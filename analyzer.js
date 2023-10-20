@@ -26,7 +26,7 @@ export class Analyzer {
 
 		this.canvasWorker = canvasWorker
 		// not possible to let AnalyzerNode to write into Shared directly
-		this.sab = new SharedArrayBuffer( 2 * 32768*1.5 )	// maxChannels * maxSize // rethink this! actually we are just using stereo visualizers... or?
+		this.sab = new SharedArrayBuffer( 2 * 32768 + 16384 )	// maxChannels * maxSize // rethink this! actually we are just using stereo visualizers... or?
 		return this.setSource(source)
 	}
 
@@ -53,7 +53,8 @@ export class Analyzer {
 		source.connect(splitter) // Input --> Splitter
 		//console.log(ctx, source)
 		//this.analyserNodes = []
-		for (let i = 0, e = source.channelCount; i < e; i++) { // all channels the ctx has
+		//for (let i = 0, e = source.channelCount; i < e; i++) { // all channels the ctx has
+		for (let i = 0, e = 2; i < e; i++) { // all channels the ctx has !! no just display 2
 			this.analyserNodes[i] = ctx.createAnalyser()
 			this.analyserNodes[i].fftSize = Math.pow(2, this.settings.fft) // default = 2048 // 2^5 .. 2^15 (32..32768)
 			this.analyserNodes[i].minDecibels = this.settings.minDB // default = -100
@@ -63,6 +64,14 @@ export class Analyzer {
 			//console.log(i)
 			splitter.connect(this.analyserNodes[i], i, 0) // Route each single channel from Splitter --> Analyzer
 		}
+		// also add another one over all channels for fft
+		this.analyserNode = ctx.createAnalyser()
+		this.analyserNode.fftSize = Math.pow(2, this.settings.fft) // default = 2048 // 2^5 .. 2^15 (32..32768)
+		this.analyserNode.minDecibels = this.settings.minDB // default = -100
+		this.analyserNode.maxDecibels = this.settings.maxDB // default = -30
+		this.analyserNode.smoothingTimeConstant = this.settings.smooth // 0..1 default = 0.8
+		source.connect(this.analyserNode) // Route all channels to this fft Analyzer
+
 		source.connect(ctx.destination)	// connect to destination else no audio
 
 		this.sendAudioInfo(ctx)
@@ -104,7 +113,7 @@ export class Analyzer {
 		//console.time('getByteData')
 		// takes 0.15 -> 0.45 ms
 		//let ab = new ArrayBuffer( this.analyserNodes.length*(this.analyserNodes[i].fftSize+this.analyserNodes[i].frequencyBinCount)  )		// channels max TIME + FFT
-		const chSize = this.analyserNodes[0].fftSize + this.analyserNodes[0].frequencyBinCount // fftSize*1.5
+		const chSize = this.analyserNodes[0].fftSize// now at the end + this.analyserNodes[0].frequencyBinCount // fftSize*1.5
 		//let u8 = new Uint8Array( this.analyserNodes.length * chSize  )		// channels max TIME + FFT
 		let sab8 = new Uint8Array( this.sab )
 		for (let i = 0; i < this.analyserNodes.length; i++) {
@@ -115,11 +124,13 @@ export class Analyzer {
 			// time is about 10x faster (here freq took about 0.2ms hard to beat with of FFT)
 			//u8.set(t, i*chSize)
 			sab8.set(t, i*chSize)	// need to copy over to shared arraybuffer
-
-			t = new Uint8Array(this.analyserNodes[i].frequencyBinCount)
-			this.analyserNodes[i].getByteFrequencyData(t)
-			sab8.set(t, i*(chSize)+this.analyserNodes[i].fftSize)
 		}
+		// fft just once
+		let t = new Uint8Array(this.analyserNode.frequencyBinCount)
+		this.analyserNode.getByteFrequencyData(t)
+		//sab8.set(t, this.analyserNodes.length*(chSize))
+		sab8.set(t, 2*32768)
+
 		//console.timeEnd('getByteData')
 		//this.canvasWorker.postMessage({data: this.data})
 		//const ab = u8.buffer

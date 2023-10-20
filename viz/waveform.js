@@ -78,7 +78,8 @@ export class Waveform {
 			//for (let i = 0, ee = data.time[ch].length; i < ee; i++) {
 			for (let i = 0, ee = this.fftSize; i < ee; i++) {
 				//amp = (data.time[ch][i]-128.0) / 128.0
-				amp = (data[ch*this.fftSize*1.5+i]-128.0) / 128.0
+				//amp = (data[ch*this.fftSize*1.5+i]-128.0) / 128.0
+				amp = (data[ch*this.fftSize+i]-128.0) / 128.0
 				pos = this.y + (ch+.5)*this.chHigh + amp*this.ampHigh
 				//ctx.fillStyle = this.colorMap[data.time[ch][i]]
 				ctx.lineTo((this.x+(i)*scaleX), (pos))

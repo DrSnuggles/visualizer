@@ -81,7 +81,8 @@ export class Spectrogram {
 				//console.log(data[x], getColor(data[x]))
 				//const style = this.colorMap[data[i]]
 				//let val = Math.max(data[0][i], data[1][i])
-				let val = Math.max(data[this.fftSize+i], data[this.fftSize*2.5+i])
+				//let val = Math.max(data[this.fftSize+i], data[this.fftSize*2.5+i])
+				let val = data[2*32768+i]
 				const style = this.colorMap[ val ]
 				const h = ((this.WEIGHTING === 'A') ? this._aWeightingLUT[i]/1.4 : 1) * val/256 * hCoeff | 0
 				const x = i*scaleX

@@ -79,14 +79,16 @@ export class Goniometer {
 		
 		// move to start point
 		//rotated = this.rotate45deg(this.toFloat(dataR[0]), this.toFloat(dataL[0]))  // Right channel is mapped to x axis
-		rotated = this.rotate45deg(this.toFloat(data[this.fftSize*1.5]), this.toFloat(data[0]))  // Right channel is mapped to x axis
+		//rotated = this.rotate45deg(this.toFloat(data[this.fftSize*1.5]), this.toFloat(data[0]))  // Right channel is mapped to x axis
+		rotated = this.rotate45deg(this.toFloat(data[this.fftSize]), this.toFloat(data[0]))  // Right channel is mapped to x axis
 		ctx.moveTo(this.x+rotated.x * width + width/2.0, this.y+rotated.y* height + height/2.0)
 		
 		// draw line
 		//for (let i = 1; i < dataL.length; i++) {
 		for (let i = 1; i < this.fftSize; i++) {
 		 //rotated = this.rotate45deg(this.toFloat(dataR[i]), this.toFloat(dataL[i]))
-		 rotated = this.rotate45deg(this.toFloat(data[this.fftSize*1.5+i]), this.toFloat(data[i]))
+		 //rotated = this.rotate45deg(this.toFloat(data[this.fftSize*1.5+i]), this.toFloat(data[i]))
+		 rotated = this.rotate45deg(this.toFloat(data[this.fftSize+i]), this.toFloat(data[i]))
 		 ctx.lineTo(this.x+rotated.x * width + width/2.0, this.y+rotated.y* height + height/2.0)
 		}
 		
