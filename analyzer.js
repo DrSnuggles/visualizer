@@ -116,9 +116,9 @@ export class Analyzer {
 		const chSize = this.analyserNodes[0].fftSize// now at the end + this.analyserNodes[0].frequencyBinCount // fftSize*1.5
 		//let u8 = new Uint8Array( this.analyserNodes.length * chSize  )		// channels max TIME + FFT
 		let sab8 = new Uint8Array( this.sab )
+		let t = new Uint8Array(this.analyserNodes[0].fftSize)
 		for (let i = 0; i < this.analyserNodes.length; i++) {
 			// timedomain waveform, goniometer
-			let t = new Uint8Array(this.analyserNodes[i].fftSize)
 			this.analyserNodes[i].getByteTimeDomainData(t)
 			// sab didnt work !!! this.analyserNodes[i].getByteTimeDomainData( new Uint8Array( this.sab.slice(0, 0*32768) ) )
 			// time is about 10x faster (here freq took about 0.2ms hard to beat with of FFT)
@@ -126,7 +126,7 @@ export class Analyzer {
 			sab8.set(t, i*chSize)	// need to copy over to shared arraybuffer
 		}
 		// fft just once
-		let t = new Uint8Array(this.analyserNode.frequencyBinCount)
+		t = new Uint8Array(this.analyserNode.frequencyBinCount)
 		this.analyserNode.getByteFrequencyData(t)
 		//sab8.set(t, this.analyserNodes.length*(chSize))
 		sab8.set(t, 2*32768)

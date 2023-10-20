@@ -71,8 +71,7 @@ export class Spectrogram {
 		// ^^^^ start at bin 1 not 0 and stop at 20kHz (not hearable)
 		// !!! do start at 0 again its a huge gap at 16 or 32 bins
 		//const scaleX = width / bins
-		const scaleX = width / (this.maxHearableBin - 1)
-
+		const scaleX = width / (this.maxHearableBin+1)
 		if (this.MODE === 'LINEAR') {
 			//analyserNode.getByteFrequencyData(data);
 			//data = new Uint8Array(data[0])	// convert float to byte
@@ -86,6 +85,7 @@ export class Spectrogram {
 				const style = this.colorMap[ val ]
 				const h = ((this.WEIGHTING === 'A') ? this._aWeightingLUT[i]/1.4 : 1) * val/256 * hCoeff | 0
 				const x = i*scaleX
+				//if (i == this.maxHearableBin) console.log(i, scaleX, x, width, this.bins, val)
 				ctx.fillStyle = style
 				ctx.fillRect((this.x+x), (this.y+hCoeff - h), scaleX, h)
 				this.tempCtx.fillStyle = style
@@ -101,7 +101,8 @@ export class Spectrogram {
 				const binWidth = (Math.log(i + 2) / logmax) * width - x | 0
 				const h =        ((this.WEIGHTING === 'A') ? this._aWeightingLUT[i]/1.4 : 1) * data[i]/256 * hCoeff | 0
 				//const style =    this.colorMap[data[i] || 0]
-				const style = this.colorMap[ Math.max(data[this.fftSize+i], data[this.fftSize*2.5+i], 0) ]
+				//const style = this.colorMap[ Math.max(data[this.fftSize+i], data[this.fftSize*2.5+i], 0) ]
+				const style = this.colorMap[ data[2*32768+i] ]
 				ctx.fillStyle = style
 				ctx.fillRect((this.x+x), (this.y+hCoeff - h), binWidth, h)
 				this.tempCtx.fillStyle = style
