@@ -60,10 +60,12 @@ export class Goniometer {
 	}
 	*/
 	drawFG() {
-		const data = new Uint8Array( this.sab )
+		//console.time('drawFG goniometer')
+		//const data = new Uint8Array( this.sab )
+		const data = new Float32Array( this.sab )
 		const ctx = this.ctx
-		const width = this.width
-		const height = this.height
+		const width = this.width/2
+		const height = this.height/2
 		//console.time('uint8array')
 		//const dataL = new Uint8Array( this.sab.slice(0 * 32768, 32768) )//data.time[0]
 		//const dataR = new Uint8Array( this.sab.slice(1 * 32768, 32768) )//data.time[1]
@@ -80,23 +82,28 @@ export class Goniometer {
 		// move to start point
 		//rotated = this.rotate45deg(this.toFloat(dataR[0]), this.toFloat(dataL[0]))  // Right channel is mapped to x axis
 		//rotated = this.rotate45deg(this.toFloat(data[this.fftSize*1.5]), this.toFloat(data[0]))  // Right channel is mapped to x axis
-		rotated = this.rotate45deg(this.toFloat(data[this.fftSize]), this.toFloat(data[0]))  // Right channel is mapped to x axis
-		ctx.moveTo(this.x+rotated.x * width + width/2.0, this.y+rotated.y* height + height/2.0)
-		
+		//rotated = this.rotate45deg(this.toFloat(data[this.fftSize]), this.toFloat(data[0]))  // Right channel is mapped to x axis
+		rotated = this.rotate45deg(data[this.fftSize], data[0])  // Right channel is mapped to x axis
+		ctx.moveTo(this.x+rotated.x * width + width, this.y+rotated.y* height + height)
 		// draw line
 		//for (let i = 1; i < dataL.length; i++) {
 		for (let i = 1; i < this.fftSize; i++) {
 		 //rotated = this.rotate45deg(this.toFloat(dataR[i]), this.toFloat(dataL[i]))
 		 //rotated = this.rotate45deg(this.toFloat(data[this.fftSize*1.5+i]), this.toFloat(data[i]))
-		 rotated = this.rotate45deg(this.toFloat(data[this.fftSize+i]), this.toFloat(data[i]))
-		 ctx.lineTo(this.x+rotated.x * width + width/2.0, this.y+rotated.y* height + height/2.0)
+		 //rotated = this.rotate45deg(this.toFloat(data[this.fftSize+i]), this.toFloat(data[i]))
+		 /* this happens due to 32bit upsampling??*/
+			//if (data[this.fftSize+i] < -1 || data[this.fftSize+i] > 1) console.log('data x', data[this.fftSize+i])
+			//if (data[i] < -1 || data[i] > 1) console.log('data y', data[i])
+		 rotated = this.rotate45deg(data[this.fftSize+i], data[i])
+		 ctx.lineTo(this.x+rotated.x * width + width, this.y+rotated.y* height + height)
 		}
 		
 		ctx.stroke()
+		//console.timeEnd('drawFG goniometer')
 	}
 	setAudio(info) {
 		this.fftSize = info.fftSize
-		this.sab = info.sab
+		this.sab = info.sab32
 	}
 		
 	// Helpers
@@ -106,19 +113,25 @@ export class Goniometer {
 	rotate45deg(x, y) {
 		const tmp = this.cartesian2polar(x, y)
 		tmp.angle -= 0.78539816 // Rotate coordinate by 45 degrees
+		//if (tmp.angle < -2.0*Math.PI || tmp.angle > 2.0*Math.PI) console.log('rotate 45deg tmp.angle', tmp.angle)// ^^ thats my guess
 		const tmp2 = this.polar2cartesian(tmp.radius, tmp.angle)
 		return {x:tmp2.x, y:tmp2.y}
 	}
 	cartesian2polar(x, y) {
 		// Convert cartesian to polar coordinate
-		const radius = Math.sqrt((x * x) + (y * y))
+		//const radius = Math.sqrt((x * x) + (y * y))
+		//const radius = Math.min(1.0, Math.sqrt((x * x) + (y * y)))
+		const radius = Math.sqrt((x * x) + (y * y)) / 1.4142135623730951
 		const angle = Math.atan2(y,x) // atan2 gives full circle
+		//if (radius < -1 || radius > 1 ) console.log('cartesian2polar radius', radius, x, y)
+		//if (angle < -2.0*Math.PI || angle > 2.0*Math.PI) console.log('cartesian2polar angle', angle)
 		return {radius:radius, angle:angle}
 	}
 	polar2cartesian(radius, angle) {
 		// Convert polar coordinate to cartesian coordinate
 		const x = radius * Math.sin(angle)
 		const y = radius * Math.cos(angle)
+		//if (x < -1 || x > 1 || y < -1 || y > 1) console.log('polar2cartesian', x, y)
 		return {x:x, y:y}
 	}
 }

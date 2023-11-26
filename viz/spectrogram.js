@@ -48,6 +48,7 @@ export class Spectrogram {
 	}
 	//drawBG() {} // not called
 	drawFG() {
+		//console.time('drawFG spectogram')
 		const data = new Uint8Array( this.sab )
 		const ctx = this.ctx
 		const width = this.width
@@ -81,7 +82,7 @@ export class Spectrogram {
 				//const style = this.colorMap[data[i]]
 				//let val = Math.max(data[0][i], data[1][i])
 				//let val = Math.max(data[this.fftSize+i], data[this.fftSize*2.5+i])
-				let val = data[2*32768+i]
+				let val = data[i]
 				const style = this.colorMap[ val ]
 				const h = ((this.WEIGHTING === 'A') ? this._aWeightingLUT[i]/1.4 : 1) * val/256 * hCoeff | 0
 				const x = i*scaleX
@@ -102,7 +103,7 @@ export class Spectrogram {
 				const h =        ((this.WEIGHTING === 'A') ? this._aWeightingLUT[i]/1.4 : 1) * data[i]/256 * hCoeff | 0
 				//const style =    this.colorMap[data[i] || 0]
 				//const style = this.colorMap[ Math.max(data[this.fftSize+i], data[this.fftSize*2.5+i], 0) ]
-				const style = this.colorMap[ data[2*32768+i] ]
+				const style = this.colorMap[ data[i] ]
 				ctx.fillStyle = style
 				ctx.fillRect((this.x+x), (this.y+hCoeff - h), binWidth, h)
 				this.tempCtx.fillStyle = style
@@ -111,6 +112,7 @@ export class Spectrogram {
 		} else if (this.MODE === 'CONSTANT_Q') {
 			// not sure if i want webassembly code here
 			//analyserNode.getFloatTimeDomainData(dataHeap)
+			const dataHeap = data.slice(0, this.fftSize) // TODO: just left channel (do i need a mono time analysernode)
 			if (!dataHeap.every(n => n === 0)) {
 				this.lib._cqt_calc(this.dataPtr, this.dataPtr)
 				this.lib._cqt_render_line(this.dataPtr)
@@ -138,7 +140,8 @@ export class Spectrogram {
 			
 			ctx.drawImage(this.tempCanvas, this.x, (this.y+hCoeff))
 		}
-	
+
+		//console.timeEnd('drawFG spectogram')
 	}
 	setAudio(info) {
 		this.fftSize = info.fftSize
@@ -152,7 +155,7 @@ export class Spectrogram {
 		const freqTable = this.makeBinFreqs()
 		this._aWeightingLUT = freqTable.map(f => 0.5 + 0.5 * this._getAWeighting(f))
 
-		this.sab = info.sab
+		this.sab = info.sab8
 	}
 
 	// Helpers
@@ -183,6 +186,7 @@ export class Spectrogram {
 			ret[i] =  i/this.bins * this.nyquist
 			if (ret[i] < 20000) this.maxHearableBin = i // max hearable 20kHz
 		}
+		//console.log('maxHearableBin', this.maxHearableBin, this.bins, this.maxHearableBin/this.bins) // ratio @44.1kHz=0.9  @48kHz=0.8  @192kHz=0.2
 		return ret
 	}
 }

@@ -3,11 +3,37 @@
 	Just pluggin in the analyzer in between
 
 	for low freq with linear bins maybe https://stackoverflow.com/questions/42313990/javascript-analysernode-low-frequencies-bass
+	
+	available time for analyzer AND visualizer
+	 24fps = 41.67ms
+	 30fps = 33.33ms
+	 60fps = 16.67ms
+	120fps =  8.33ms
+
+	analyzer speed depends on fftSize on my computer
+	2^5  =    32 =  0.2ms
+	2^6  =    64 =  ?.?ms
+	2^7  =   128 =  ?.?ms
+	2^8  =   256 =  ?.?ms
+	2^9  =   512 =  0.3ms
+	2^10 =  1024 =  0.5ms
+	2^11 =  2048 =  0.8ms
+	2^12 =  4096 =  1.4ms
+	2^13 =  8192 =  2.7ms
+	2^14 = 16384 =  5.2ms
+	2^15 = 32768 = 10.0ms
+	^^^linear at the end     sab.set() does no much effect NICE (0.015ms per channel * 2(wave+fft))
+
+	single fft node !!! cutted time by around 2
+	with 16k fftSize i have now 2.7ms
+
+	since this depends very much on machine used best is to measure for a moment and adept
+
 */
 
 const defaultSettings = {
 	fps: 0,
-	fft: 11, // pow 2 = 2048
+	fft: 11, // 11 pow 2 = 2048
 	minDB: -100,
 	maxDB: -30,
 	smooth: 0,
@@ -26,7 +52,8 @@ export class Analyzer {
 
 		this.canvasWorker = canvasWorker
 		// not possible to let AnalyzerNode to write into Shared directly
-		this.sab = new SharedArrayBuffer( 2 * 32768 + 16384 )	// maxChannels * maxSize // rethink this! actually we are just using stereo visualizers... or?
+		this.sab32 = new SharedArrayBuffer( (2 * 32768 ) )	// maxChannels * maxSize // rethink this! actually we are just using stereo visualizers... or?
+		this.sab8 = new SharedArrayBuffer( 16384 )	// max mono uint8 for byteFrequencyDomain
 		return this.setSource(source)
 	}
 
@@ -84,6 +111,7 @@ export class Analyzer {
 		// no more IF in loop
 		// but another jump (should be faster) ;)
 		this.rAF = requestAnimationFrame(()=>{this.loopRAF()})
+		this.getFramerate()
 		this.loop()
 	}
 	loopTimer() {
@@ -94,8 +122,10 @@ export class Analyzer {
 	}
 	getFramerate() {
 		const now = performance.now()
-		this.framerate = 1000 / (now - this.lastTick)
+		//this.framerate = 1000 / (now - this.lastTick)
+		this.framerate = (this.framerate + 1000 / (now - this.lastTick)) / 2 // bit more avg
 		this.lastTick = now
+		//console.log(this.framerate)
 	}
 	loop () {
 		//console.time('loop')
@@ -115,27 +145,28 @@ export class Analyzer {
 		//let ab = new ArrayBuffer( this.analyserNodes.length*(this.analyserNodes[i].fftSize+this.analyserNodes[i].frequencyBinCount)  )		// channels max TIME + FFT
 		const chSize = this.analyserNodes[0].fftSize// now at the end + this.analyserNodes[0].frequencyBinCount // fftSize*1.5
 		//let u8 = new Uint8Array( this.analyserNodes.length * chSize  )		// channels max TIME + FFT
-		let sab8 = new Uint8Array( this.sab )
-		let t = new Uint8Array(this.analyserNodes[0].fftSize)
+		let sab8 = new Uint8Array( this.sab8 )
+		let sab32 = new Float32Array( this.sab32 )
+		let t = new Float32Array(this.analyserNodes[0].fftSize)
 		for (let i = 0; i < this.analyserNodes.length; i++) {
 			// timedomain waveform, goniometer
-			this.analyserNodes[i].getByteTimeDomainData(t)
+			this.analyserNodes[i].getFloatTimeDomainData(t)
 			// sab didnt work !!! this.analyserNodes[i].getByteTimeDomainData( new Uint8Array( this.sab.slice(0, 0*32768) ) )
 			// time is about 10x faster (here freq took about 0.2ms hard to beat with of FFT)
 			//u8.set(t, i*chSize)
-			sab8.set(t, i*chSize)	// need to copy over to shared arraybuffer
+			sab32.set(t, i*chSize)	// need to copy over to shared arraybuffer
 		}
 		// fft just once
 		t = new Uint8Array(this.analyserNode.frequencyBinCount)
 		this.analyserNode.getByteFrequencyData(t)
-		//sab8.set(t, this.analyserNodes.length*(chSize))
-		sab8.set(t, 2*32768)
+		sab8.set(t, 0)
 
 		//console.timeEnd('getByteData')
 		//this.canvasWorker.postMessage({data: this.data})
 		//const ab = u8.buffer
 		//this.canvasWorker.postMessage(ab, [ab])	// avoid json here to gain bit speed JSON is really fast but collecting all
 		this.canvasWorker.postMessage('process')
+		//console.log(this.framerate)
 		//console.timeEnd('loop')
 	}
 	sendAudioInfo(ctx) {
@@ -146,7 +177,8 @@ export class Analyzer {
 			smooth: this.analyserNodes[0].smoothingTimeConstant,
 			sampleRate: ctx?.sampleRate,
 			channels: ctx?.destination.channelCount,
-			sab: this.sab,
+			sab32: this.sab32,
+			sab8: this.sab8,
 		}})
 		/*
 		this.audioInfo = {
@@ -175,7 +207,6 @@ export class Analyzer {
 		if (fps === 0) {
 			//console.log('Using RAF')
 			this.rAF = requestAnimationFrame(()=>{this.loopRAF()})
-			this.framerate = 'MAX'
 		} else {
 			//console.log('Using Interval')
 			//this.rAF = setTimeout(this.loopTimer, 1000/fps) // slower for tests

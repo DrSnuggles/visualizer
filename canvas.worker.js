@@ -11,6 +11,7 @@ onmessage = function(e) {
 	//console.log(e.data.byteLength)
 	// most used on top
 	if (e.data === 'process') {
+		//console.time('process')
 		for (let i = 0; i < viz.length; i++) {
 			//console.time('viz #'+i)
 			viz[i].clear()
@@ -18,6 +19,7 @@ onmessage = function(e) {
 			viz[i].drawFG()
 			//console.timeEnd('viz #'+i)
 		}
+		//console.timeEnd('process')
 		return
 	}
 	/*
@@ -56,6 +58,8 @@ onmessage = function(e) {
 		const tmp = e.data.canvas.getContext('2d')
 		viz.push(new Goniometer(tmp, 0, 0, tmp.canvas.width/2, tmp.canvas.width/2))
 		viz.push(new Spectrogram(tmp, 'LINEAR', 'A', tmp.canvas.width/2, 0, tmp.canvas.width/2, tmp.canvas.width/2))
+//		viz.push(new Spectrogram(tmp, 'LOG', 'A', tmp.canvas.width/2, 0, tmp.canvas.width/2, tmp.canvas.width/2))
+		//viz.push(new Spectrogram(tmp, 'CONSTANT_Q', 'A', tmp.canvas.width/2, 0, tmp.canvas.width/2, tmp.canvas.width/2))
 		viz.push(new Waveform(tmp, 0, tmp.canvas.width/2, tmp.canvas.width, tmp.canvas.height - tmp.canvas.width/2))
 		return
 	}

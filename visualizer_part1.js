@@ -5,7 +5,7 @@ import {Analyzer} from './analyzer.js'
 
 const defaultSettings = {
 	fps: 0,
-	fft: 11, // pow 2 = 2048
+	fft: 0, // 11 pow 2 = 2048
 	minDB: -100,
 	maxDB: -30,
 	smooth: 0,
