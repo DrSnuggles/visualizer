@@ -74,10 +74,12 @@ export class Analyzer {
 			ctx = source.context
 		}
 
-		//console.log('source.channelCount', source.channelCount)
-		splitter = ctx.createChannelSplitter( source.channelCount )
-		//console.log(splitter)
-		source.connect(splitter) // Input --> Splitter
+		if (source.numberOfOutputs < 2) {
+			splitter = ctx.createChannelSplitter( source.channelCount )
+			source.connect(splitter) // Input --> Splitter
+		} else {
+			splitter = source
+		}
 		//console.log(ctx, source)
 		//this.analyserNodes = []
 		//for (let i = 0, e = source.channelCount; i < e; i++) { // all channels the ctx has
@@ -88,7 +90,6 @@ export class Analyzer {
 			this.analyserNodes[i].maxDecibels = this.settings.maxDB // default = -30
 			this.analyserNodes[i].smoothingTimeConstant = this.settings.smooth // 0..1 default = 0.8
 			// Todo: ^^ needs to be set by visualizers, or ???
-			//console.log(i)
 			splitter.connect(this.analyserNodes[i], i, 0) // Route each single channel from Splitter --> Analyzer
 		}
 		// also add another one over all channels for fft
