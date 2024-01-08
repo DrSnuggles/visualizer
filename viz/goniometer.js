@@ -59,10 +59,10 @@ export class Goniometer {
 		ctx.stroke() // finally draw
 	}
 	*/
-	drawFG() {
+	drawFG(dat) {
 		//console.time('drawFG goniometer')
 		//const data = new Uint8Array( this.sab )
-		const data = new Float32Array( this.sab )
+		const data = dat ? dat : new Float32Array( this.sab )
 		const ctx = this.ctx
 		const width = this.width/2
 		const height = this.height/2

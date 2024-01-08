@@ -52,8 +52,16 @@ export class Analyzer {
 
 		this.canvasWorker = canvasWorker
 		// not possible to let AnalyzerNode to write into Shared directly
-		this.sab32 = new SharedArrayBuffer( (2 * 32768 ) )	// maxChannels * maxSize // rethink this! actually we are just using stereo visualizers... or?
-		this.sab8 = new SharedArrayBuffer( 16384 )	// max mono uint8 for byteFrequencyDomain
+		// and shared only exists on servers with COEP + COOP
+		try {
+			this.sab32 = new SharedArrayBuffer( (2 * 32768 ) )	// maxChannels * maxSize // rethink this! actually we are just using stereo visualizers... or?
+			this.sab8 = new SharedArrayBuffer( 16384 )	// max mono uint8 for byteFrequencyDomain
+			this.sab = true
+		} catch(e) {
+			this.sab32 = new ArrayBuffer( (2 * 32768 ) )
+			this.sab8 = new ArrayBuffer( 16384 )
+			this.sab = false
+		}
 		return this.setSource(source)
 	}
 
@@ -166,7 +174,10 @@ export class Analyzer {
 		//this.canvasWorker.postMessage({data: this.data})
 		//const ab = u8.buffer
 		//this.canvasWorker.postMessage(ab, [ab])	// avoid json here to gain bit speed JSON is really fast but collecting all
-		this.canvasWorker.postMessage('process')
+		if (this.sab)
+			this.canvasWorker.postMessage({process: []})
+		else
+			this.canvasWorker.postMessage({process: [sab32, sab8]})
 		//console.log(this.framerate)
 		//console.timeEnd('loop')
 	}

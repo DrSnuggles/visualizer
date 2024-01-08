@@ -10,15 +10,21 @@ let viz = []
 onmessage = function(e) {
 	//console.log(e.data.byteLength)
 	// most used on top
-	if (e.data === 'process') {
+	if (e.data.process) {
 		//console.time('process')
-		for (let i = 0; i < viz.length; i++) {
+		//for (let i = 0; i < viz.length; i++) {
 			//console.time('viz #'+i)
-			viz[i].clear()
+		//	viz[i].clear()
 			//viz[i].drawBG()
-			viz[i].drawFG()
+		//	viz[i].drawFG()
 			//console.timeEnd('viz #'+i)
-		}
+		//}
+		viz[0].clear()
+		viz[0].drawFG(e.data.process[0])
+		viz[1].clear()
+		viz[1].drawFG(e.data.process[1])
+		viz[2].clear()
+		viz[2].drawFG(e.data.process[0])
 		//console.timeEnd('process')
 		return
 	}
