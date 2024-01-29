@@ -11,11 +11,11 @@
 	}
 
 	// autoFFTsize
-	// try to make it like the canvas size => wave fftSize = canvas.width = screen.width
+	// try to make it like the canvas size => wave fftSize = canvas.width = width
 	// get rid of complex settings
 	if (this.settings.fft === 0) {
 		for (let i = 5; i < 16; i++) {
-			if (Math.pow(2, i) >= screen.width * this.settings.scale) {
+			if (Math.pow(2, i) >= width * this.settings.scale) {
 				this.settings.fft = i
 				//console.log('AutoFFT size: '+ Math.pow(2, i))
 				break
@@ -26,8 +26,8 @@
 
 	// first call
 	// cannot change dimensions after transfer, so max for best fullscreen
-	canvas.width = screen.width * this.settings.scale
-	canvas.height = screen.height * this.settings.scale
+	canvas.width = width * this.settings.scale
+	canvas.height = height * this.settings.scale
 	canvas.style.cssText = 'user-select:none;'
 	canvas.ondblclick = (ev) => { canvas.requestFullscreen() }
 	canvas.onfullscreenchange = (ev) => {
