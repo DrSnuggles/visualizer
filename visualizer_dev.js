@@ -20,12 +20,20 @@ export class Visualizer {
 		this.audioSource = source
 		this.settings = {...defaultSettings, ...settings}
 
+		// mobiles and portait mode
+		let width = Math.max(screen.width, screen.height)
+		let height = Math.min(screen.width, screen.height)
+		if (/Mobi/i.test(navigator.userAgent) || window.safari !== undefined) {
+			width = Math.max(visualViewport.width, visualViewport.height)
+			height = Math.min(visualViewport.width, visualViewport.height)
+		}
+
 		// autoFFTsize
 		// try to make it like the canvas size => wave fftSize = canvas.width = screen.width
 		// get rid of complex settings
 		if (this.settings.fft === 0) {
 			for (let i = 5; i < 16; i++) {
-				if (Math.pow(2, i) >= screen.width * this.settings.scale) {
+				if (Math.pow(2, i) >= width * this.settings.scale) {
 					this.settings.fft = i
 					//console.log('AutoFFT size: '+ Math.pow(2, i))
 					break
@@ -37,8 +45,8 @@ export class Visualizer {
 		// first call
 		// cannot change dimensions after transfer, so max for best fullscreen
 		try {
-			canvas.width = screen.width * this.settings.scale
-			canvas.height = screen.height * this.settings.scale
+			canvas.width = width * this.settings.scale
+			canvas.height = height * this.settings.scale
 			canvas.style.cssText += ';user-select:none;'
 			canvas.ondblclick = (ev) => { canvas.requestFullscreen() }
 			canvas.onfullscreenchange = (ev) => {

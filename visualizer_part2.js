@@ -2,6 +2,14 @@
 	this.audioSource = source,
 	this.settings = {...defaultSettings, ...settings}
 
+	// mobiles and portait mode
+	let width = Math.max(screen.width, screen.height)
+	let height = Math.min(screen.width, screen.height)
+	if (/Mobi/i.test(navigator.userAgent) || window.safari !== undefined) {
+		width = Math.max(visualViewport.width, visualViewport.height)
+		height = Math.min(visualViewport.width, visualViewport.height)
+	}
+
 	// autoFFTsize
 	// try to make it like the canvas size => wave fftSize = canvas.width = screen.width
 	// get rid of complex settings
