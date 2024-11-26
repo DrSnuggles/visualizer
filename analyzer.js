@@ -53,6 +53,7 @@ export class Analyzer {
 		this.canvasWorker = canvasWorker
 		// not possible to let AnalyzerNode to write into Shared directly
 		// and shared only exists on servers with COEP + COOP
+		/* so for a while make the code shorter
 		try {
 			this.sab32 = new SharedArrayBuffer( (2 * 32768 ) )	// maxChannels * maxSize // rethink this! actually we are just using stereo visualizers... or?
 			this.sab8 = new SharedArrayBuffer( 16384 )	// max mono uint8 for byteFrequencyDomain
@@ -63,6 +64,12 @@ export class Analyzer {
 			this.sab8 = new ArrayBuffer( 16384 )
 			this.sab = false
 		}
+		*/
+		// short version
+		this.sab32 = new ArrayBuffer( (2 * 32768 ) )
+		this.sab8 = new ArrayBuffer( 16384 )
+		this.sab = false
+
 		return this.setSource(source)
 	}
 

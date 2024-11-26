@@ -45,7 +45,14 @@
 	}
 	
 	exit() {
+		// kill worker
 		this.canvasWorker.terminate()
+		// cancel cyclic analyzer polling
+		if (this.analyzer.fps === 0) {
+			cancelAnimationFrame(this.analyzer.rAF)
+		} else {
+			clearInterval(this.analyzer.rAF)
+		}
 		// todo: more cleanup like canvas event??
 	}
 

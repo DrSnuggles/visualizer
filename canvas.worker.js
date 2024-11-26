@@ -80,6 +80,7 @@ onmessage = function(e) {
 			viz[i].setAudio(e.data.audioInfo)
 		}
 		//console.log(e.data.audioInfo)
+		requestAnimationFrame(renderLoop) // is this late enough?
 		return
 	}
 
@@ -89,6 +90,8 @@ onmessage = function(e) {
 
 function renderLoop(delta) {
 	//console.time('renderLoop')
+	requestAnimationFrame(renderLoop)
+	if (!dat) return
 	try {
 		viz[0].clear()
 		viz[0].drawFG(dat.process[0])
@@ -99,7 +102,6 @@ function renderLoop(delta) {
 	} catch(e) {
 		console.error('Error in canvas.worker renderLoop', e)
 	}
-	requestAnimationFrame(renderLoop)
 	//console.timeEnd('renderLoop')
 }
-requestAnimationFrame(renderLoop)
+// requestAnimationFrame(renderLoop) // too early
