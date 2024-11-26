@@ -43,4 +43,10 @@
 	// further calls this.analyzer.setSource(this.audioSource)
 	return this
 	}
+	
+	exit() {
+		this.canvasWorker.terminate()
+		// todo: more cleanup like canvas event??
+	}
+
 }

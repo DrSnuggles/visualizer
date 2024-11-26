@@ -35,7 +35,7 @@ export class Visualizer {
 			for (let i = 5; i < 16; i++) {
 				if (Math.pow(2, i) >= width * this.settings.scale) {
 					this.settings.fft = i
-					//console.log('AutoFFT size: '+ Math.pow(2, i))
+					console.log('AutoFFT size: '+ Math.pow(2, i))
 					break
 				}
 			}
@@ -67,5 +67,10 @@ export class Visualizer {
 		this.analyzer = new Analyzer(this.audioSource, this.canvasWorker, this.settings)
 		// further calls this.analyzer.setSource(this.audioSource)
 		return this
+	}
+
+	exit() {
+		this.canvasWorker.terminate()
+		// todo: more cleanup like canvas event??
 	}
 }

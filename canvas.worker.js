@@ -6,6 +6,7 @@ import {Spectrogram} from './viz/spectrogram.js'
 import {Goniometer} from './viz/goniometer.js'
 
 let viz = []
+let dat
 
 onmessage = function(e) {
 	//console.log(e.data.byteLength)
@@ -19,12 +20,15 @@ onmessage = function(e) {
 		//	viz[i].drawFG()
 			//console.timeEnd('viz #'+i)
 		//}
+		/*
 		viz[0].clear()
 		viz[0].drawFG(e.data.process[0])
 		viz[1].clear()
 		viz[1].drawFG(e.data.process[1])
 		viz[2].clear()
 		viz[2].drawFG(e.data.process[0])
+		*/
+		dat = e.data
 		//console.timeEnd('process')
 		return
 	}
@@ -82,3 +86,20 @@ onmessage = function(e) {
 	// still here ?
 	console.error('Unknown message:', e.data)
 }
+
+function renderLoop(delta) {
+	//console.time('renderLoop')
+	try {
+		viz[0].clear()
+		viz[0].drawFG(dat.process[0])
+		viz[1].clear()
+		viz[1].drawFG(dat.process[1])
+		viz[2].clear()
+		viz[2].drawFG(dat.process[0])
+	} catch(e) {
+		console.error('Error in canvas.worker renderLoop', e)
+	}
+	requestAnimationFrame(renderLoop)
+	//console.timeEnd('renderLoop')
+}
+requestAnimationFrame(renderLoop)

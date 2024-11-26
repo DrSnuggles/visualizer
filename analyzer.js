@@ -58,6 +58,7 @@ export class Analyzer {
 			this.sab8 = new SharedArrayBuffer( 16384 )	// max mono uint8 for byteFrequencyDomain
 			this.sab = true
 		} catch(e) {
+			console.log('Vizualizer: No SharedArrayBuffer, using ArrayBuffer.')
 			this.sab32 = new ArrayBuffer( (2 * 32768 ) )
 			this.sab8 = new ArrayBuffer( 16384 )
 			this.sab = false
