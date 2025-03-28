@@ -5,8 +5,8 @@ import {Waveform} from './viz/waveform.js'
 import {Spectrogram} from './viz/spectrogram.js'
 import {Goniometer} from './viz/goniometer.js'
 
-let viz = []
-let dat
+let viz = [],
+dat, raf = 0
 
 onmessage = function(e) {
 	//console.log(e.data.byteLength)
@@ -80,7 +80,7 @@ onmessage = function(e) {
 			viz[i].setAudio(e.data.audioInfo)
 		}
 		//console.log(e.data.audioInfo)
-		requestAnimationFrame(renderLoop) // is this late enough?
+		if (!raf) raf = requestAnimationFrame(renderLoop) // is this late enough?
 		return
 	}
 
@@ -90,7 +90,7 @@ onmessage = function(e) {
 
 function renderLoop(delta) {
 	//console.time('renderLoop')
-	requestAnimationFrame(renderLoop)
+	raf = requestAnimationFrame(renderLoop)
 	if (!dat) return
 	try {
 		viz[0].clear()
