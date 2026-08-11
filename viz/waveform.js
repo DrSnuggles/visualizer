@@ -59,20 +59,46 @@ export class Waveform {
 	*/
 	drawFG(dat) {
 		//console.time('drawFG waveform')
-		//const data = new Uint8Array( this.sab )
-		const data = dat ? dat : new Float32Array( this.sab )
+		const data = dat
+		// old SAB fallback allocated a new TypedArray view for every draw:
+		// const data = dat ? dat : new Float32Array(this.sab)
 		const ctx = this.ctx
 		const width = this.width
-		const height = this.height
-		
+		//const height = this.height
+		// hoist invariants into locals (avoid repeated this.* lookups in the hot loop)
+		const x0 = this.x
+		const y0 = this.y
+		const fftSize = this.fftSize
+		const chHigh = this.chHigh
+		const ampHigh = this.ampHigh
+
 		ctx.beginPath()
 		ctx.lineWidth = 2
+		ctx.lineJoin = 'bevel' // cheaper than default 'miter' for the many sharp angles of the waveform
 		ctx.strokeStyle = this.strokeFG // for line
-		//const scaleX = width / data.time[0].length
-		const scaleX = width / this.fftSize
-		
+		// draw at most one point per pixel column: when fftSize > width, subsample (nearest),
+		// so the loop never does more than `width` lineTo calls and avoids sub-pixel overdraw.
+		// when fftSize <= width this is identical to before (cols=fftSize, dx=scaleX, sstep=1).
+		const cols = fftSize < width ? fftSize : width
+		const dx = width / cols      // px per drawn point (= old scaleX when fftSize <= width)
+		const sstep = fftSize / cols // samples advanced per point (= 1 when fftSize <= width)
+
 		// channels
 		//for (let ch = 0, e = data.time.length; ch < e; ch++) {
+		for (let ch = 0, e = this.channels; ch < e; ch++) {
+			const off = ch * fftSize                 // channel offset into data, once per channel
+			const baseline = y0 + (ch + .5) * chHigh // constant zero-line of this channel, once per channel
+			ctx.moveTo(x0, baseline + data[off] * ampHigh)
+			let si = 0 // float sample accumulator (avoids a multiply per point)
+			for (let p = 0; p < cols; p++) {
+				// only the sampled amp varies per point; si|0 = nearest sample index
+				ctx.lineTo(x0 + (p + 1) * dx, baseline + data[off + (si | 0)] * ampHigh)
+				si += sstep
+			}
+		}
+		ctx.stroke()
+		/* old version (recomputed baseline and ch*fftSize per sample), kept for reference:
+		const scaleX = width / this.fftSize
 		for (let ch = 0, e = this.channels; ch < e; ch++) {
 			//let amp = (data[ch*this.fftSize+0]-128.0) / 128.0
 			let amp = data[ch*this.fftSize+0]
@@ -93,11 +119,13 @@ export class Waveform {
 			//ctx.lineTo((this.x+width), (this.y+pos))
 		}
 		ctx.stroke()
+		*/
 
 		//console.timeEnd('drawFG waveform')
 	}
 	setAudio(info) {
 		this.sab = info.sab32
+		this.sabData = new Float32Array(info.sab32) // one reusable SAB view for renderLoopSAB
 		this.fftSize = info.fftSize
 
 		if (!info.channels) return

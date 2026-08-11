@@ -1,16 +1,7 @@
 /*	
 	Visualizer, now as class for multiple instances
 */
-import {Analyzer} from './analyzer.js'
-
-const defaultSettings = {
-	fps: 0,
-	fft: 0, // 11 pow 2 = 2048
-	minDB: -100,
-	maxDB: -30,
-	smooth: 0,
-	scale: 1,
-}
+import {Analyzer, defaultSettings} from './analyzer.js' // single source of truth for defaults
 
 export class Visualizer {
 	constructor(source, canvas, settings) {

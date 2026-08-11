@@ -1,8 +1,9 @@
 /*	
 	Visualizer, now as class for multiple instances
 */
-import {Analyzer} from './analyzer.js'
+import {Analyzer, defaultSettings} from './analyzer.js' // single source of truth for defaults
 
+/* old local copy, now imported from analyzer.js (see #8):
 const defaultSettings = {
 	fps: 0,
 	fft: 0, // 11 pow 2 = 2048;   0=auto
@@ -11,6 +12,7 @@ const defaultSettings = {
 	smooth: 0,
 	scale: 1,
 }
+*/
 
 export class Visualizer {
 	constructor(source, canvas, settings) {
@@ -57,7 +59,8 @@ export class Visualizer {
 			}
 				
 			const offscreen = canvas.transferControlToOffscreen()
-			this.canvasWorker.postMessage({ canvas: offscreen, devicePixelRatio: devicePixelRatio }, [offscreen]) // its nicer to pack the transfered objects into a new one
+			// pass settings too so the worker can build an optional custom layout (settings.layout)
+			this.canvasWorker.postMessage({ canvas: offscreen, devicePixelRatio: devicePixelRatio, settings: this.settings }, [offscreen]) // its nicer to pack the transfered objects into a new one
 		}
 		catch(e) {
 			console.info('Visualizer recalled. Use .analyzer.setSource() instead')
@@ -72,12 +75,15 @@ export class Visualizer {
 	exit() {
 		// kill worker
 		this.canvasWorker.terminate()
-		// cancel cyclic analyzer polling
+		// stop analyzer polling AND close the (self-created) AudioContext
+		this.analyzer.dispose()
+		/* old inline cleanup (now in Analyzer.dispose, also closes AudioContext):
 		if (this.analyzer.fps === 0) {
 			cancelAnimationFrame(this.analyzer.rAF)
 		} else {
 			clearInterval(this.analyzer.rAF)
 		}
+		*/
 		// todo: more cleanup like canvas event??
 	}
 }
