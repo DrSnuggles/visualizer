@@ -31,7 +31,7 @@
 
 */
 
-// canonical defaults, shared with visualizer_dev.js (single source of truth)
+// canonical defaults, shared with visualizer.js (single source of truth)
 // fft: 0 = auto (resolved by Visualizer); Analyzer falls back to 11 when 0/falsy
 export const defaultSettings = {
 	fps: 0,
@@ -64,6 +64,12 @@ export class Analyzer {
 		this.lastTick = performance.now()
 
 		this.canvasWorker = canvasWorker
+		this._frameId = 0
+		this._pendingFrame = null
+		this._onFrameRendered = ({data}) => {
+			if (data.frameRendered === this._pendingFrame) this._pendingFrame = null
+		}
+		this.canvasWorker.addEventListener('message', this._onFrameRendered)
 		// AnalyzerNode can't write into a SharedArrayBuffer directly, and SAB only exists
 		// on pages served with COOP + COEP (crossOriginIsolated). Use it when available
 		// (worker reads the same memory -> zero copy), otherwise fall back to ArrayBuffer
@@ -183,6 +189,9 @@ export class Analyzer {
 		//console.log(this.framerate)
 	}
 	loop () {
+		// Keep at most one copied observation in flight. While the worker is busy,
+		// skip sampling; the next available frame always reads current audio.
+		if (!this.sab && this._pendingFrame !== null) return
 		//console.time('loop')
 		//console.log('loop')
 		/* now loopRAF
@@ -206,9 +215,15 @@ export class Analyzer {
 			this._time = new Float32Array(chSize)
 			this._freq = new Uint8Array(this.analyserNode.frequencyBinCount)
 		}
+		if (!this.sab && (!this._copyTime || this._copyTime.length !== chSize * this.analyserNodes.length)) {
+			// Structured cloning a subarray still copies its entire backing buffer.
+			// Exact-sized output arrays keep the fallback payload proportional to FFT.
+			this._copyTime = new Float32Array(chSize * this.analyserNodes.length)
+			this._copyFreq = new Uint8Array(this.analyserNode.frequencyBinCount)
+		}
 		// reuse preallocated buffers (see setSource), no per-frame allocations
-		const sab8 = this._sab8
-		const sab32 = this._sab32
+		const sab8 = this.sab ? this._sab8 : this._copyFreq
+		const sab32 = this.sab ? this._sab32 : this._copyTime
 		const t = this._time
 		/* old (allocating) version, kept for reference:
 		let sab8 = new Uint8Array( this.sab8 )
@@ -237,12 +252,15 @@ export class Analyzer {
 			// Publish only after both output arrays have been filled. Atomics makes this
 			// visible to the worker without creating a per-frame message-queue task.
 			Atomics.add(this._sabState, 0, 1)
-		else
-			this.canvasWorker.postMessage({process: [sab32, sab8]})
+		else {
+			this._pendingFrame = ++this._frameId
+			this.canvasWorker.postMessage({process: [this._copyTime, this._copyFreq], frameId: this._pendingFrame})
+		}
 		//console.log(this.framerate)
 		//console.timeEnd('loop')
 	}
 	sendAudioInfo(ctx) {
+		this._pendingFrame = null
 		this.canvasWorker.postMessage({audioInfo: {
 			fftSize: this.analyserNodes[0].fftSize,
 			minDB: this.analyserNodes[0].minDecibels,
@@ -306,6 +324,7 @@ export class Analyzer {
 		this.fps = fps
 	}
 	dispose() {
+		this.canvasWorker.removeEventListener('message', this._onFrameRendered)
 		// stop polling loop
 		if (this.rAF) {
 			if (this.fps === 0) cancelAnimationFrame(this.rAF)

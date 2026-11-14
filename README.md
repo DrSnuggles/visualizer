@@ -7,7 +7,7 @@ Just loving displayed music
 See index.html for help
 
 ## Build
-Minify: docker run --rm -v /home/web/visualizer:/work dev gulp
+Minify: Install [Bun](https://bun.com/) and run `bun run build`.
 
 ## License
 MIT

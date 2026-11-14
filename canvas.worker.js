@@ -6,7 +6,7 @@ import {Spectrogram} from './viz/spectrogram.js'
 import {Goniometer} from './viz/goniometer.js'
 
 let viz = [],
-	dat, raf = 0, dirty = false, sabState = null, lastFrame = 0
+	raf = 0, sabState = null, lastFrame = 0
 
 // registry so layouts can be defined by type name (configurable, see settings.layout)
 const VIZ_CLASSES = {Goniometer, Spectrogram, Waveform}
@@ -56,11 +56,9 @@ onmessage = function(e) {
 		viz[2].clear()
 		viz[2].drawFG(e.data.process[0])
 		*/
-		dat = e.data
-		// The analyzer may deliberately run below display refresh rate.  Do not redraw
-		// the same shared/copied audio frame in every worker rAF: it wastes canvas work
-		// and advances the spectrogram history without a new audio observation.
-		dirty = true
+		// The analyzer already paces copied frames. Draw on arrival so a second
+		// rAF boundary cannot delay acknowledgement and halve the producer FPS.
+		renderCopyFrame(e.data.process, e.data.frameId)
 		//console.timeEnd('process')
 		return
 	}
@@ -116,12 +114,11 @@ onmessage = function(e) {
 		for (let i = 0; i < viz.length; i++) {
 			viz[i].setAudio(e.data.audioInfo)
 		}
-		// Select the transport-specific loop once.  The render hot paths below stay
-		// branch-free: SAB reads cached views; ArrayBuffer reads its latest message.
+		// SAB needs polling; copied frames render directly in their message task.
 		sabState = e.data.audioInfo.sabState ? new Int32Array(e.data.audioInfo.sabState) : null
 		lastFrame = sabState ? Atomics.load(sabState, 0) : 0
 		//console.log(e.data.audioInfo)
-		if (!raf) raf = requestAnimationFrame(sabState ? renderLoopSAB : renderLoopCopy)
+		if (!raf && sabState) raf = requestAnimationFrame(renderLoopSAB)
 		return
 	}
 
@@ -144,14 +141,8 @@ function renderLoopSAB(delta) {
 	}
 }
 
-function renderLoopCopy(delta) {
-	raf = requestAnimationFrame(renderLoopCopy)
-	if (!dat || !dirty) return
-	// A message cannot interleave with this synchronous render. Clear the flag before
-	// drawing so the next queued process message schedules one new render.
-	dirty = false
+function renderCopyFrame(process, frameId) {
 	try {
-		const process = dat.process
 		for (let i = 0; i < viz.length; i++) {
 			viz[i].clear()
 			viz[i].drawFG(process[viz[i].src])
@@ -165,6 +156,10 @@ function renderLoopCopy(delta) {
 		viz[2].drawFG(dat.process[0])
 		*/
 	} catch(e) {
-		console.error('Error in canvas.worker copy renderLoop', e)
+		console.error('Error in canvas.worker renderCopyFrame', e)
+	} finally {
+		// Release the producer after drawing, including failed frames, so there is
+		// never a FIFO backlog of stale copied audio observations.
+		postMessage({frameRendered: frameId})
 	}
 }

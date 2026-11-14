@@ -3,7 +3,7 @@
 */
 
 export class Goniometer {
-	constructor(ctx, x, y, w, h, decimate = 1, step = 1) {
+	constructor(ctx, x, y, w, h, decimate = 1, step = 1, resolution = 0) {
 		this.ctx = ctx
 		this.x = x ? x : 0
 		this.y = y ? y : 0
@@ -15,11 +15,17 @@ export class Goniometer {
 		this.decimate = decimate
 		// fixed stride: draw only every step-th sample. 1 = all (default), 2 = half, ...
 		this.step = Math.max(1, step | 0)
+		// Draw at native resolution by default to preserve crisp strokes. A positive
+		// resolution explicitly opts into a smaller raster for faster dense strokes.
+		const scale = resolution > 0 ? Math.min(1, resolution / Math.max(this.width, this.height)) : 1
+		this.renderCanvas = scale < 1 ? new OffscreenCanvas(Math.ceil(this.width * scale), Math.ceil(this.height * scale)) : null
+		this.renderCtx = this.renderCanvas ? this.renderCanvas.getContext('2d', {alpha: false}) : ctx
 	}
 	clear() {
-		const ctx = this.ctx
+		const ctx = this.renderCtx
 		ctx.fillStyle = 'rgba(0, 0, 0, 1)'
-		ctx.fillRect(this.x, this.y, this.width, this.height)
+		if (this.renderCanvas) ctx.fillRect(0, 0, this.renderCanvas.width, this.renderCanvas.height)
+		else ctx.fillRect(this.x, this.y, this.width, this.height)
 	}
 	/*
 	drawBG() { // not called
@@ -68,9 +74,10 @@ export class Goniometer {
 		const data = dat
 		// old SAB fallback allocated a new TypedArray view for every draw:
 		// const data = dat ? dat : new Float32Array(this.sab)
-		const ctx = this.ctx
-		const width = this.width/2
-		const height = this.height/2
+		const ctx = this.renderCtx
+		const width = (this.renderCanvas ? this.renderCanvas.width : this.width)/2
+		const height = (this.renderCanvas ? this.renderCanvas.height : this.height)/2
+		const x = this.renderCanvas ? 0 : this.x, y = this.renderCanvas ? 0 : this.y
 		//console.time('uint8array')
 		//const dataL = new Uint8Array( this.sab.slice(0 * 32768, 32768) )//data.time[0]
 		//const dataR = new Uint8Array( this.sab.slice(1 * 32768, 32768) )//data.time[1]
@@ -87,8 +94,8 @@ export class Goniometer {
 		// here x = R = data[fftSize+i], y = L = data[i].
 		const sx = width / 2, sy = height / 2
 		ctx.save()
-		ctx.setTransform(-sx, sy, sx, sy, this.x + width, this.y + height)
-		ctx.lineWidth = 1 / sx // counter the transform scale -> ~1 device px (goniometer is square)
+		ctx.setTransform(-sx, sy, sx, sy, x + width, y + height)
+		ctx.lineWidth = 4 / this.width // preserve the displayed stroke width when scaled
 		ctx.lineJoin = 'bevel' // cheaper than default 'miter' for the many sharp angles of a noisy lissajous
 		ctx.strokeStyle = this.strokeFG
 		ctx.beginPath()
@@ -96,7 +103,7 @@ export class Goniometer {
 		// (lots of them near the center during quiet passages); busy/loud signal is unaffected.
 		const fftSize = this.fftSize
 		const step = this.step // fixed stride: only iterate every step-th sample
-		const eps = 0.5 * this.decimate / sx // adaptive per-axis threshold; this.decimate scales the px tolerance (0 = off)
+		const eps = 2 * this.decimate / this.width // tolerance in displayed pixels, independent of render resolution
 		let lastR = data[fftSize], lastL = data[0]
 		ctx.moveTo(lastR, lastL) // start point: (R0, L0) always drawn
 		for (let i = step; i < fftSize; i += step) {
@@ -115,6 +122,7 @@ export class Goniometer {
 		ctx.stroke()
 		*/
 		ctx.restore() // back to identity transform for the other visualizers sharing this ctx
+		if (this.renderCanvas) this.ctx.drawImage(this.renderCanvas, this.x, this.y, this.width, this.height)
 
 		/* old per-sample version (rotate45deg + {x,y} allocation per sample), kept for reference:
 		ctx.lineWidth = 1

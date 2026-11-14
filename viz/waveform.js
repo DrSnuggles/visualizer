@@ -71,6 +71,36 @@ export class Waveform {
 		const fftSize = this.fftSize
 		const chHigh = this.chHigh
 		const ampHigh = this.ampHigh
+		const pixelCols = Math.max(1, Math.floor(width))
+		if (fftSize > pixelCols) {
+			// Pool every sample into a pixel envelope. This retains short peaks and
+			// replaces expensive, overlapping zigzag strokes with narrow rectangles.
+			ctx.fillStyle = this.strokeFG
+			const dx = width / pixelCols
+			for (let ch = 0; ch < this.channels; ch++) {
+				const off = ch * fftSize
+				const baseline = y0 + (ch + .5) * chHigh
+				let start = 0
+				for (let p = 0; p < pixelCols; p++) {
+					const end = Math.floor((p + 1) * fftSize / pixelCols)
+					let lo = data[off + start], hi = lo
+					for (let i = start + 1; i < end; i++) {
+						const value = data[off + i]
+						if (value < lo) lo = value
+						if (value > hi) hi = value
+					}
+					// Bridge the previous sample so single-sample columns stay connected.
+					if (start) {
+						const previous = data[off + start - 1]
+						if (previous < lo) lo = previous
+						if (previous > hi) hi = previous
+					}
+					ctx.fillRect(x0 + p * dx, baseline + lo * ampHigh - 1, dx, (hi - lo) * ampHigh + 2)
+					start = end
+				}
+			}
+			return
+		}
 
 		ctx.beginPath()
 		ctx.lineWidth = 2
