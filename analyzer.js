@@ -64,12 +64,18 @@ export class Analyzer {
 		this.lastTick = performance.now()
 
 		this.canvasWorker = canvasWorker
+		// #15: the worker's vsync loop is the only clock. It posts a tick whenever it
+		// wants a fresh audio snapshot, so sampling and drawing can't drift apart.
+		this._onTick = () => this.loop()
+		this.canvasWorker.addEventListener('message', this._onTick)
+		/* old flow control of the copy path (the tick replaces it), kept for reference:
 		this._frameId = 0
 		this._pendingFrame = null
 		this._onFrameRendered = ({data}) => {
 			if (data.frameRendered === this._pendingFrame) this._pendingFrame = null
 		}
 		this.canvasWorker.addEventListener('message', this._onFrameRendered)
+		*/
 		// AnalyzerNode can't write into a SharedArrayBuffer directly, and SAB only exists
 		// on pages served with COOP + COEP (crossOriginIsolated). Use it when available
 		// (worker reads the same memory -> zero copy), otherwise fall back to ArrayBuffer
@@ -168,6 +174,7 @@ export class Analyzer {
 		return this
 	}
 
+	/* old own timers (rAF / setInterval), replaced by the worker tick (#15), kept for reference:
 	loopRAF() {
 		// no more IF in loop
 		// but another jump (should be faster) ;)
@@ -181,6 +188,7 @@ export class Analyzer {
 		this.getFramerate()
 		this.loop()
 	}
+	*/
 	getFramerate() {
 		const now = performance.now()
 		//this.framerate = 1000 / (now - this.lastTick)
@@ -189,9 +197,9 @@ export class Analyzer {
 		//console.log(this.framerate)
 	}
 	loop () {
-		// Keep at most one copied observation in flight. While the worker is busy,
-		// skip sampling; the next available frame always reads current audio.
-		if (!this.sab && this._pendingFrame !== null) return
+		// called once per tick of the canvas worker (see _onTick)
+		this.getFramerate()
+		// old: if (!this.sab && this._pendingFrame !== null) return
 		//console.time('loop')
 		//console.log('loop')
 		/* now loopRAF
@@ -252,15 +260,13 @@ export class Analyzer {
 			// Publish only after both output arrays have been filled. Atomics makes this
 			// visible to the worker without creating a per-frame message-queue task.
 			Atomics.add(this._sabState, 0, 1)
-		else {
-			this._pendingFrame = ++this._frameId
-			this.canvasWorker.postMessage({process: [this._copyTime, this._copyFreq], frameId: this._pendingFrame})
-		}
+		else
+			this.canvasWorker.postMessage({process: [this._copyTime, this._copyFreq]})
+			// old: this._pendingFrame = ++this._frameId  +  frameId: this._pendingFrame in the message
 		//console.log(this.framerate)
 		//console.timeEnd('loop')
 	}
 	sendAudioInfo(ctx) {
-		this._pendingFrame = null
 		this.canvasWorker.postMessage({audioInfo: {
 			fftSize: this.analyserNodes[0].fftSize,
 			minDB: this.analyserNodes[0].minDecibels,
@@ -296,6 +302,12 @@ export class Analyzer {
 		return exp // clamped value, so the caller can sync its UI
 	}
 	setFPS(fps) {
+		// 0 = every vsync, else the worker draws every n-th vsync (even cadence on the vsync grid)
+		this.fps = fps
+		this.canvasWorker.postMessage({fps})
+	}
+	/* old version with own timers, kept for reference:
+	setFPS(fps) {
 		//console.log('Target FPS: '+ fps)
 		// stop loop
 		if (this.rAF) {
@@ -323,14 +335,18 @@ export class Analyzer {
 		}
 		this.fps = fps
 	}
+	*/
 	dispose() {
+		// stop sampling (no own timer anymore, just stop listening to the worker ticks)
+		this.canvasWorker.removeEventListener('message', this._onTick)
+		/* old:
 		this.canvasWorker.removeEventListener('message', this._onFrameRendered)
-		// stop polling loop
 		if (this.rAF) {
 			if (this.fps === 0) cancelAnimationFrame(this.rAF)
 			else clearInterval(this.rAF)
 			this.rAF = null
 		}
+		*/
 		// close the AudioContext only if we created it ourselves (avoid leak)
 		if (this.ctx && this.ownsContext) {
 			this.ctx.close()

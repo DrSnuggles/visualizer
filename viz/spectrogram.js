@@ -22,12 +22,16 @@ export class Spectrogram {
 			'#ffffa0',
 			'#ffffff',
 		])
-		this.tempCanvas = new OffscreenCanvas(this.width, this.height)// for gradient ?? needed ??
-		this.tempCtx = this.tempCanvas.getContext('2d', {alpha: false}) // for repeated copy
 		this.MODE = mode // LINEAR, LOG, CONSTANT_Q
 		this.WEIGHTING = weighting // NONE, A
 		
 		this.hCoeff = this.height*0.2 // top 20% are used for spec, lower 80% for history
+		// History = ring buffer of rows (#16): only the visible 80% and a multiple of the
+		// scroll speed (2px), so the write position wraps exactly.
+		this.pos = 0
+		this.tempCanvas = new OffscreenCanvas(this.width, Math.ceil((this.height - this.hCoeff) / 2) * 2)
+		// old: this.tempCanvas = new OffscreenCanvas(this.width, this.height)// for gradient ?? needed ??
+		this.tempCtx = this.tempCanvas.getContext('2d', {alpha: false}) // for repeated copy
 		this.bins = 1024 // overwritten after audio init
 		this.nyquist = 48000 / 2 // half of sampleRate overwritten after audio init
 		this.maxHearableBin = 1023 // overwritten after audio init by makebins
@@ -59,7 +63,7 @@ export class Spectrogram {
 		const ctx = this.ctx
 		const hCoeff = this.hCoeff
 		const specSpeed = 2
-		const isRepeated = false // jitter correction disabled (see isRepeatedFrequencyData)
+		//const isRepeated = false // jitter correction disabled (see isRepeatedFrequencyData)
 		// One loop for LINEAR / LOG / CONSTANT_Q — the per-mode differences (which bins to read,
 		// x position, bar width, height scale) are baked into the tables by makeColumns().
 		const binLo = this._binLo
@@ -73,6 +77,10 @@ export class Spectrogram {
 			const px = this.x
 			const yTop = this.y + hCoeff
 			const N = binLo.length
+			// ring buffer: the newest row goes above the previous one, wrapping at the top
+			const H = this.tempCanvas.height
+			const pos = this.pos = (this.pos || H) - specSpeed
+			const pal = colorMap.u32, row = this._row
 			for (let c = 0; c < N; c++) {
 				// max-pool the FFT bins mapped to this column (exactly one for LINEAR/LOG)
 				let val = 0
@@ -82,9 +90,17 @@ export class Spectrogram {
 				const x = colX[c], w = colW[c]
 				ctx.fillStyle = style
 				ctx.fillRect(px + x, yTop - h, w, h)
-				tctx.fillStyle = style
-				tctx.fillRect(x, 0, w, specSpeed)
+				row[c] = pal[val] // history: one pixel per column, uploaded at once below
+				// old: tctx.fillStyle = style; tctx.fillRect(x, 0, w, specSpeed)
 			}
+			// new history row: N pixels in one upload, stretched to the full width
+			this._rowCtx.putImageData(this._rowImg, 0, 0)
+			tctx.drawImage(this._rowCtx.canvas, 0, 0, N, 1, 0, pos, this.tempCanvas.width, specSpeed)
+			// newest row is at pos: draw pos..H first, then the wrapped (older) part 0..pos.
+			// Two partial blits replace the full self-copy of the history + one full blit.
+			const W = this.tempCanvas.width
+			ctx.drawImage(this.tempCanvas, 0, pos, W, H - pos, px, yTop, W, H - pos)
+			if (pos) ctx.drawImage(this.tempCanvas, 0, 0, W, pos, px, yTop + H - pos, W, pos)
 		}
 		/* previous per-mode 3-branch version (replaced by the unified loop above), kept for reference:
 		const scaleX = width / (this.maxHearableBin+1)
@@ -115,6 +131,8 @@ export class Spectrogram {
 			}
 		}
 		*/
+		/* old scrolling: shift the whole history by copying the canvas onto itself every
+		   frame, replaced by the ring buffer above (#16), kept for reference:
 		if (!isRepeated) {
 			// tempCtx.drawImage(this.specCanvas, 0, 0);
 			// translate the transformation matrix. subsequent draws happen in this frame
@@ -126,6 +144,7 @@ export class Spectrogram {
 			
 			ctx.drawImage(this.tempCanvas, this.x, (this.y+hCoeff))
 		}
+		*/
 
 		//console.timeEnd('drawFG spectogram')
 	}
@@ -210,6 +229,7 @@ export class Spectrogram {
 			}
 			this._binLo = binLo; this._binHi = binHi
 			this._colX = colX; this._colW = colW; this._hLUT = hLUT
+			this.makeRow(N)
 			return
 		}
 
@@ -253,6 +273,14 @@ export class Spectrogram {
 		}
 		this._binLo = binLo; this._binHi = binHi
 		this._colX = colX; this._colW = colW; this._hLUT = hLUT
+		this.makeRow(N)
+	}
+	makeRow(N) {
+		// one history row as pixels (#16): N x 1, colors written as 32bit values from the palette
+		this._rowCtx = new OffscreenCanvas(N, 1).getContext('2d', {alpha: false, willReadFrequently: true})
+		this._rowImg = this._rowCtx.createImageData(N, 1)
+		this._row = new Uint32Array(this._rowImg.data.buffer)
+		this.tempCtx.imageSmoothingEnabled = false // hard column edges when the row is stretched
 	}
 	/* superseded by makeColumns(), kept for reference:
 	makeHeightLUT() {

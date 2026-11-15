@@ -31,7 +31,7 @@ const appResult = await Bun.build({
 	plugins: [{
 		name: "visualizer-dev-source",
 		setup(build) {
-			build.onLoad({ filter: /visualizer_dev\.js$/ }, () => ({
+			build.onLoad({ filter: /[\\/]visualizer\.js$/ }, () => ({ // was /visualizer_dev\.js$/: never matched after the rename, so the worker was not inlined
 				contents: source,
 				loader: "js",
 				resolveDir: process.cwd()

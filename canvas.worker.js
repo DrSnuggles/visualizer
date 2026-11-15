@@ -6,7 +6,9 @@ import {Spectrogram} from './viz/spectrogram.js'
 import {Goniometer} from './viz/goniometer.js'
 
 let viz = [],
-	raf = 0, sabState = null, lastFrame = 0
+	raf = 0, sabState = null, lastFrame = 0,
+	copy = null, copyFrame = 0,			// copy path: latest posted arrays + their counter
+	minDelta = 0, last = 0, prev = 0, asked = 0	// frame pacing, see renderLoop
 
 // registry so layouts can be defined by type name (configurable, see settings.layout)
 const VIZ_CLASSES = {Goniometer, Spectrogram, Waveform}
@@ -56,9 +58,10 @@ onmessage = function(e) {
 		viz[2].clear()
 		viz[2].drawFG(e.data.process[0])
 		*/
-		// The analyzer already paces copied frames. Draw on arrival so a second
-		// rAF boundary cannot delay acknowledgement and halve the producer FPS.
-		renderCopyFrame(e.data.process, e.data.frameId)
+		// Only store it, renderLoop draws it on the next due vsync (#15). Drawing on
+		// arrival (old: renderCopyFrame(e.data.process, e.data.frameId)) is not vsync paced.
+		copy = e.data.process
+		copyFrame++
 		//console.timeEnd('process')
 		return
 	}
@@ -114,11 +117,19 @@ onmessage = function(e) {
 		for (let i = 0; i < viz.length; i++) {
 			viz[i].setAudio(e.data.audioInfo)
 		}
-		// SAB needs polling; copied frames render directly in their message task.
+		// SAB publishes new audio via an atomic counter, the copy path via 'process' messages.
 		sabState = e.data.audioInfo.sabState ? new Int32Array(e.data.audioInfo.sabState) : null
-		lastFrame = sabState ? Atomics.load(sabState, 0) : 0
+		lastFrame = sabState ? Atomics.load(sabState, 0) : copyFrame
+		asked = 0 // (re)start the request cycle
 		//console.log(e.data.audioInfo)
-		if (!raf && sabState) raf = requestAnimationFrame(renderLoopSAB)
+		if (!raf) raf = requestAnimationFrame(renderLoop)
+		// old: if (!raf && sabState) raf = requestAnimationFrame(renderLoopSAB)
+		return
+	}
+
+	// target fps, 0 = every vsync. Paced on the vsync grid in renderLoop.
+	if (e.data.fps !== undefined) {
+		minDelta = e.data.fps ? 1000 / e.data.fps - 4 : 0 // 4ms tolerance for vsync timestamp jitter
 		return
 	}
 
@@ -126,6 +137,36 @@ onmessage = function(e) {
 	console.error('Unknown message:', e.data)
 }
 
+// #15: one clock for everything. This rAF is the only timer: it decides when a frame
+// is due (fps limit = whole vsyncs, so the cadence stays even) and asks the analyzer for
+// a fresh audio snapshot one vsync ahead. The analyzer has no timer of its own anymore,
+// so two unsynchronised loops can no longer race or beat against each other, and the
+// snapshot is written while this worker is idle (no half-written frames).
+function renderLoop(t) {
+	raf = requestAnimationFrame(renderLoop)
+	const frame = sabState ? Atomics.load(sabState, 0) : copyFrame
+	if (frame !== lastFrame && t - last >= minDelta) {
+		lastFrame = frame
+		last = t
+		asked = 0
+		try {
+			for (let i = 0; i < viz.length; i++) {
+				viz[i].clear()
+				viz[i].drawFG(sabState ? viz[i].sabData : copy[viz[i].src])
+			}
+		} catch(e) {
+			console.error('Error in canvas.worker renderLoop', e)
+		}
+	}
+	// request after drawing (all reads done), at most one request in flight
+	if (!asked && t - last >= minDelta - (t - prev) - 1) {
+		asked = 1
+		postMessage(0)
+	}
+	prev = t
+}
+
+/* old loops (two transports, two clocks), kept for reference:
 function renderLoopSAB(delta) {
 	raf = requestAnimationFrame(renderLoopSAB)
 	const frame = Atomics.load(sabState, 0)
@@ -147,14 +188,6 @@ function renderCopyFrame(process, frameId) {
 			viz[i].clear()
 			viz[i].drawFG(process[viz[i].src])
 		}
-		/* old hardcoded version, kept for reference:
-		viz[0].clear()
-		viz[0].drawFG(dat.process[0])
-		viz[1].clear()
-		viz[1].drawFG(dat.process[1])
-		viz[2].clear()
-		viz[2].drawFG(dat.process[0])
-		*/
 	} catch(e) {
 		console.error('Error in canvas.worker renderCopyFrame', e)
 	} finally {
@@ -163,3 +196,4 @@ function renderCopyFrame(process, frameId) {
 		postMessage({frameRendered: frameId})
 	}
 }
+*/

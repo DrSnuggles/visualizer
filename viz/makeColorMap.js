@@ -28,6 +28,8 @@ export function makeColorMap(gradientColors) {
 	for (let i = 0; i < steps; i++) {
 		ret[i] = getColor(i)
 	}
+	// same colors as 32bit pixels (for ImageData rows, see Spectrogram)
+	ret.u32 = new Uint32Array(oCtx.getImageData(0, 0, steps, 1).data.buffer)
 	return ret
 
 	// helper
